@@ -1,0 +1,79 @@
+/* ==========================================================================
+   我的 · 备份快照 / 导入方式选择（v1.4）
+   只加强现有卡片之外的新块，基础 .row/.btn 沿用 styles.css
+   ========================================================================== */
+
+/* ---------- 快照列表（弹层内） ---------- */
+.mez-backup-count{
+  font-size:12px;color:var(--text-3);font-weight:600;
+  margin:0 2px 8px;
+}
+.mez-backup-list{display:flex;flex-direction:column;gap:8px}
+.mez-backup-row{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 10px 10px 14px;border-radius:var(--radius-sm);
+  background:var(--surface-2);
+}
+.mez-backup-main{flex:1;min-width:0}
+.mez-backup-name{
+  font-size:14.5px;font-weight:600;line-height:1.35;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.mez-backup-meta{
+  font-size:12px;color:var(--text-3);font-weight:500;line-height:1.5;
+  margin-top:2px;font-variant-numeric:tabular-nums;
+}
+
+/* 行内小按钮：无障碍 44px 触控高度 */
+.mez-mini{
+  flex:none;display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;min-width:52px;padding:0 12px;
+  border-radius:12px;font-size:13.5px;font-weight:600;
+  background:var(--surface);color:var(--text-2);
+  transition:transform .14s ease,background .16s ease;
+}
+.mez-mini:active{transform:scale(.95)}
+.mez-mini.primary{background:var(--primary-soft);color:var(--primary)}
+.mez-mini.danger{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
+.mez-mini:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+.mez-empty{
+  padding:26px 18px;text-align:center;
+  font-size:13px;font-weight:500;color:var(--text-3);line-height:1.7;
+  border:1px dashed var(--line);border-radius:var(--radius-sm);
+}
+
+/* ---------- 导入方式选择 ---------- */
+.mez-pick{display:flex;flex-direction:column;gap:10px;margin-bottom:4px}
+.mez-pick-row{
+  display:flex;align-items:center;gap:12px;width:100%;
+  min-height:60px;padding:12px 12px 12px 13px;text-align:left;
+  border-radius:var(--radius-sm);background:var(--surface-2);
+  transition:transform .14s ease,background .16s ease;
+}
+.mez-pick-row:active{transform:scale(.99);background:var(--surface-3)}
+.mez-pick-row:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.mez-pick-ic{
+  flex:none;display:grid;place-items:center;width:38px;height:38px;
+  border-radius:12px;font-size:17px;background:var(--surface);
+}
+.mez-pick-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mez-pick-title{font-size:14.5px;font-weight:600;line-height:1.35}
+.mez-pick-sub{
+  font-size:12px;color:var(--text-3);font-weight:500;line-height:1.5;
+}
+.mez-pick-row.is-danger .mez-pick-title{color:var(--danger)}
+.mez-pick-row.is-danger .mez-pick-ic{
+  background:color-mix(in srgb,var(--danger) 12%,transparent);
+}
+
+/* 深色主题：保证分隔与文字对比度 */
+[data-theme="dark"] .mez-backup-row,
+[data-theme="dark"] .mez-pick-row{background:var(--surface-2)}
+[data-theme="dark"] .mez-backup-row .mez-mini{background:var(--surface-3);color:var(--text)}
+[data-theme="dark"] .mez-backup-row .mez-mini.primary{background:var(--primary-soft);color:var(--primary)}
+[data-theme="dark"] .mez-pick-ic{background:var(--surface-3)}
+
+@media (prefers-reduced-motion: reduce){
+  .mez-mini,.mez-pick-row{transition:none}
+}

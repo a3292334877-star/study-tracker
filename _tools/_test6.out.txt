@@ -1,0 +1,330 @@
+{
+  "total": 33,
+  "failed": 1,
+  "failures": [
+    {
+      "name": "周报海报可生成",
+      "ok": false,
+      "detail": {
+        "ok": false
+      }
+    }
+  ],
+  "results": [
+    {
+      "name": "静态 import 目标全部存在",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "index.html 样式引用都存在",
+      "ok": true,
+      "detail": {
+        "cssRefs": [
+          "css/styles.css",
+          "css/parts/log.css",
+          "css/parts/stats.css",
+          "css/parts/sheets.css",
+          "css/parts/me.css"
+        ],
+        "missingCss": []
+      }
+    },
+    {
+      "name": "SW 预缓存覆盖全部模块",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "SW 清单无失效条目",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "SW 缓存版本号存在",
+      "ok": true,
+      "detail": "const CACHE = 'study-tracker-v9'"
+    },
+    {
+      "name": "注入 1000 条数据",
+      "ok": true,
+      "detail": {
+        "sessions": 1000,
+        "subjects": 4
+      }
+    },
+    {
+      "name": "记录页 1000 条不全量渲染",
+      "ok": true,
+      "detail": {
+        "ms": 0.6,
+        "rows": 2,
+        "totalText": null,
+        "hasMoreBtn": false
+      }
+    },
+    {
+      "name": "记录页渲染耗时 < 1200ms",
+      "ok": true,
+      "detail": {
+        "ms": 0.6
+      }
+    },
+    {
+      "name": "记录页总数按全量口径",
+      "ok": true,
+      "detail": {
+        "ms": 0.6,
+        "rows": 2,
+        "totalText": null,
+        "hasMoreBtn": false
+      }
+    },
+    {
+      "name": "路由切换写入读屏播报",
+      "ok": true,
+      "detail": {
+        "srText": "学习记录，按时间倒序 · 点一条可修改"
+      }
+    },
+    {
+      "name": "弹层声明为模态对话框",
+      "ok": true,
+      "detail": {
+        "hidden": false,
+        "role": "dialog",
+        "modal": "true",
+        "label": "记一笔学习",
+        "focusInside": true,
+        "active": "r-title"
+      }
+    },
+    {
+      "name": "弹层打开后焦点进入弹层",
+      "ok": true,
+      "detail": {
+        "hidden": false,
+        "role": "dialog",
+        "modal": "true",
+        "label": "记一笔学习",
+        "focusInside": true,
+        "active": "r-title"
+      }
+    },
+    {
+      "name": "Tab 焦点被限制在弹层内",
+      "ok": true,
+      "detail": {
+        "inside": true,
+        "open": true
+      }
+    },
+    {
+      "name": "Esc 关闭弹层",
+      "ok": true,
+      "detail": {
+        "open": false,
+        "inner": 0
+      }
+    },
+    {
+      "name": "数据层：标签归一与查询",
+      "ok": true,
+      "detail": {
+        "sessions": 3,
+        "subjects": 2,
+        "tags": [
+          "错题",
+          "听力",
+          "第3章"
+        ]
+      }
+    },
+    {
+      "name": "记录页：标签 chips 与全量计数",
+      "ok": true,
+      "detail": {
+        "count": "共 3 条 · 合计 1h35m",
+        "rows": 3,
+        "tagChips": 3
+      }
+    },
+    {
+      "name": "记录页：标签筛选生效",
+      "ok": true,
+      "detail": {
+        "rows": 2,
+        "count": "共 2 条 · 合计 1h5m",
+        "pressed": "true"
+      }
+    },
+    {
+      "name": "记录页：关键词搜索与高亮",
+      "ok": true,
+      "detail": {
+        "rows": 1,
+        "count": "找到 1 条 · 合计 30分",
+        "marks": 2
+      }
+    },
+    {
+      "name": "记录页：点一行进入编辑弹层",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "hasDelete": true
+      }
+    },
+    {
+      "name": "删除后出现撤销条",
+      "ok": true,
+      "detail": {
+        "bar": true,
+        "btn": true,
+        "sessions": 2
+      }
+    },
+    {
+      "name": "撤销删除恢复记录",
+      "ok": true,
+      "detail": {
+        "sessions": 3
+      }
+    },
+    {
+      "name": "存为模板",
+      "ok": true,
+      "detail": {
+        "templates": [
+          {
+            "title": "听力精听练习",
+            "minutes": 30,
+            "tags": [
+              "听力",
+              "复习"
+            ]
+          }
+        ],
+        "chips": 1
+      }
+    },
+    {
+      "name": "模板一键填入",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "title": "听力精听练习",
+        "minutes": "30",
+        "tags": "听力 复习"
+      }
+    },
+    {
+      "name": "多份快照：命名 / 保留 / 删除",
+      "ok": true,
+      "detail": {
+        "before": 1,
+        "count": 3,
+        "names": [
+          "换机前",
+          "期末复习前"
+        ],
+        "afterRemove": 2
+      }
+    },
+    {
+      "name": "导入合并：保留原数据并追加",
+      "ok": true,
+      "detail": {
+        "before": 3,
+        "afterMerge": {
+          "mode": "merge",
+          "added": 3,
+          "sessions": 6,
+          "subjects": 3
+        },
+        "afterReplace": {
+          "mode": "replace",
+          "sessions": 3,
+          "subjects": 1
+        }
+      }
+    },
+    {
+      "name": "导入覆盖：替换全部数据",
+      "ok": true,
+      "detail": {
+        "before": 3,
+        "afterMerge": {
+          "mode": "merge",
+          "added": 3,
+          "sessions": 6,
+          "subjects": 3
+        },
+        "afterReplace": {
+          "mode": "replace",
+          "sessions": 3,
+          "subjects": 1
+        }
+      }
+    },
+    {
+      "name": "统计页：周期对比与最佳单日",
+      "ok": true,
+      "detail": {
+        "hasPrev": true,
+        "hasBest": true,
+        "hasStreak": true
+      }
+    },
+    {
+      "name": "打卡分享卡可生成",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "w": 1500,
+        "h": 2056,
+        "len": 424146
+      }
+    },
+    {
+      "name": "统计页：全部区间无横向溢出",
+      "ok": true,
+      "detail": {
+        "doc": 390,
+        "win": 390,
+        "cols": 14,
+        "chartScroll": 330,
+        "chartClient": 326
+      }
+    },
+    {
+      "name": "周报海报可生成",
+      "ok": false,
+      "detail": {
+        "ok": false
+      }
+    },
+    {
+      "name": "我的页：备份快照列表",
+      "ok": true,
+      "detail": {
+        "open": true,
+        "rows": 3,
+        "expect": 3,
+        "hint": true
+      }
+    },
+    {
+      "name": "我的页版本号 v1.4",
+      "ok": true,
+      "detail": {
+        "text": "      ›\n      \n    \n\n    \n      数据仅保存在本机浏览器\n      学习记录 v1.4 · 可以添加到主屏幕使用\n    \n  "
+      }
+    },
+    {
+      "name": "控制台无错误",
+      "ok": true,
+      "detail": []
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+(async function(){const s=(ms)=>new Promise(r=>setTimeout(r,ms)); await s(120); return {hash: location.hash, title: document.title, rows: document.querySelectorAll('.list [data-sub]').length, now: Date.now()};})()

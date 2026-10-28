@@ -1,0 +1,126 @@
+/* 统计页 —— v1.4 分片样式
+   约定：类名加前缀，避免和其他分片冲突 */
+
+/* ---------- A. 本周 / 上周 对比条 ---------- */
+.stats-cmp {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-1);
+}
+
+.stats-cmp-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-3);
+}
+
+.stats-cmp-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.stats-cmp-k {
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.stats-cmp-v {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stats-cmp-v-muted {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.stats-cmp-dot {
+  color: var(--line);
+}
+
+.stats-cmp-delta {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stats-cmp-up {
+  color: var(--success, #12b76a);
+}
+
+.stats-cmp-down {
+  color: var(--warn, #f79009);
+}
+
+.stats-cmp-flat {
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+/* ---------- B. 两个新指标（2 列，390px 也不挤） ---------- */
+.stats-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stats-grid-2 .stat {
+  min-width: 0;
+  padding: 12px 8px;
+}
+
+.stats-grid-2 .stat b {
+  font-size: 17px;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+
+.stats-grid-2 .stat span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+
+/* ---------- C. 连续打卡分享卡弹层 ---------- */
+.stats-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 2px;
+}
+
+.stats-canvas {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  background: var(--surface-2);
+}
+
+/* 深色主题：对比条底色略提亮，避免和白卡混淆 */
+[data-theme="dark"] .stats-cmp {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+[data-theme="dark"] .stats-canvas {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}

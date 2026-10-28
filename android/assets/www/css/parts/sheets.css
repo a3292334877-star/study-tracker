@@ -1,0 +1,93 @@
+/* 记一笔 / 编辑 / 模板 弹层 —— v1.4 分片样式
+   约定：类名加前缀，避免和其他分片冲突 */
+
+/* ---------- 上一条 / 复制 ---------- */
+.sheetx-last{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:14px;padding:8px 10px 8px 13px;
+  border-radius:13px;background:var(--surface-2);
+}
+.sheetx-last-text{
+  flex:1;min-width:0;font-size:12.5px;color:var(--text-3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sheetx-last-btn{
+  flex:none;height:30px;padding:0 12px;border-radius:10px;
+  font-size:12.5px;background:var(--surface);color:var(--text-2);
+}
+.sheetx-last-btn:active{transform:scale(.96)}
+.sheetx-last-tip{flex:none;color:var(--primary);font-size:12px;font-weight:600}
+
+/* ---------- 标签输入 ---------- */
+.sheetx-tag-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.sheetx-tag-chips[hidden]{display:none}
+.sheetx-tag-chip{
+  display:inline-flex;align-items:center;gap:2px;max-width:100%;
+  padding:2px 3px 2px 10px;border-radius:99px;
+  background:var(--primary-soft);color:var(--primary);
+  font-size:12px;font-weight:600;line-height:1.7;
+}
+.sheetx-tag-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheetx-tag-x{
+  flex:none;display:grid;place-items:center;width:22px;height:22px;
+  border-radius:50%;color:inherit;opacity:.7;font-size:15px;line-height:1;
+  transition:opacity .15s ease,background-color .15s ease;
+}
+.sheetx-tag-x:hover,.sheetx-tag-x:active{opacity:1;background:color-mix(in srgb,var(--primary) 14%,transparent)}
+.sheetx-tag-x:focus-visible{opacity:1;outline-offset:1px}
+
+/* ---------- 常用模板 ---------- */
+.sheetx-tpls{gap:7px}
+.sheetx-tpl{
+  display:inline-block;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sheetx-tpl:active{transform:scale(.97)}
+.sheetx-tpls-empty{margin:0;line-height:1.6}
+.sheetx-save-tpl{
+  height:36px;padding:0 14px;margin-top:11px;border-radius:12px;
+  font-size:13.5px;background:var(--surface-2);color:var(--text-2);
+}
+.sheetx-save-tpl:active{transform:scale(.97)}
+
+/* ---------- 删除撤销条 ---------- */
+.sheetx-undo{
+  position:fixed;left:50%;bottom:calc(var(--tabbar-h) + 14px + var(--safe-b));
+  z-index:61;width:calc(100% - 28px);max-width:420px;
+  display:flex;align-items:center;gap:12px;
+  padding:10px 10px 10px 16px;border-radius:16px;
+  background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow-2);
+  opacity:0;pointer-events:none;transform:translate(-50%,14px);
+  transition:opacity .2s ease,transform .22s cubic-bezier(.32,.72,0,1),bottom .2s ease;
+}
+.sheetx-undo.on{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.sheetx-undo-text{
+  flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sheetx-undo-btn{
+  flex:none;height:38px;padding:0 16px;border-radius:12px;
+  font-size:13.5px;font-weight:700;color:#fff;
+  background:linear-gradient(135deg,var(--primary),var(--primary-2));
+  box-shadow:0 8px 18px -10px var(--primary);
+}
+.sheetx-undo-btn:active{transform:scale(.96)}
+
+/* 弹层还开着时（按天列表）：撤销条贴底，弹层底部让出空间，别盖住操作按钮 */
+body.sheetx-undo-sheet .sheetx-undo{bottom:calc(14px + var(--safe-b))}
+body.sheetx-undo-sheet .sheet{padding-bottom:calc(72px + var(--safe-b))}
+body.sheetx-undo-sheet .sheet-actions{
+  bottom:calc(-72px - var(--safe-b));
+  padding-bottom:calc(72px + var(--safe-b));
+  margin-bottom:calc(-72px - var(--safe-b));
+}
+/* 弹层关着时撤销条在 tabbar 上方，toast 再往上让一层 */
+body.sheetx-undo-open:not(.sheetx-undo-sheet) .toast{
+  bottom:calc(var(--tabbar-h) + 78px + var(--safe-b));
+}
+
+@media (max-width:360px){
+  .sheetx-undo{padding:9px 9px 9px 13px;gap:9px}
+  .sheetx-undo-btn{padding:0 13px}
+}

@@ -1,0 +1,9 @@
+# 测试产物与截图
+_shots/
+
+# 构建产物（keystore 是唯一签名凭证，必须保留）
+android/build/*
+!android/build/release.keystore
+
+# 日志
+*.log

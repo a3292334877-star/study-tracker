@@ -1,0 +1,52 @@
+/* 记录页（学习时间线） —— v1.4 分片样式
+   约定：类名统一 log- 前缀，避免和其他分片冲突；颜色只用 CSS 变量，深色自动适配 */
+
+/* ---------- 筛选区：时间范围 + 科目 / 标签横向滚动 chips ---------- */
+.log-filters{display:flex;flex-direction:column;gap:10px}
+
+.log-rail{
+  display:flex;align-items:center;gap:8px;
+  margin:0 -2px;padding:2px 2px 4px;
+  overflow-x:auto;overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.log-rail::-webkit-scrollbar{display:none}
+.log-rail .log-chip{flex:none;white-space:nowrap}
+
+.log-chip{display:inline-flex;align-items:center;gap:5px}
+.log-num{
+  font-size:11px;font-weight:700;color:var(--text-3);
+  font-variant-numeric:tabular-nums;
+}
+.log-chip.on .log-num{color:inherit;opacity:.72}
+.log-arch{
+  padding:0 6px;border-radius:99px;
+  background:var(--surface-3);color:var(--text-3);
+  font-size:10.5px;font-weight:600;line-height:1.6;
+}
+.log-chip.on .log-arch{background:var(--surface);color:var(--primary)}
+
+/* ---------- 统计行 ---------- */
+.log-count{margin:14px 4px 8px}
+
+/* ---------- 记录行里的标签小 chip ---------- */
+.log-tag{
+  padding:1px 7px;border-radius:99px;
+  background:var(--primary-soft);color:var(--primary);
+  font-size:11px;font-weight:600;
+  max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ---------- 加载更多 / 已显示全部 ---------- */
+.log-more{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:16px}
+.log-more .btn{
+  height:44px;padding:0 22px;border-radius:14px;
+  background:var(--surface);color:var(--text-2);
+  box-shadow:var(--shadow-1);font-size:14px;
+}
+.log-more .btn:active{transform:scale(.98)}
+.log-done{margin:0;text-align:center}
+
+/* ---------- 空状态里的「清除筛选」 ---------- */
+.log-clear{min-width:132px}
