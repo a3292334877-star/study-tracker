@@ -110,13 +110,74 @@ function normalize(raw) {
   };
 }
 
-/* 损坏数据留档：键名带时间戳，方便用户自己捞回来 */
+/* 损坏数据留档：键名带时间戳，方便用户自己捞回来。留档只保留最近 CORRUPT_MAX 份、
+   30 天过期，否则这些「救生圈」自己就会把配额吃满（v1.7） */
+const CORRUPT_MAX = 3;
+const CORRUPT_TTL = 30 * 24 * 60 * 60 * 1000;
+
+export function listCorrupt() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || key.indexOf(CORRUPT_KEY_PREFIX) !== 0) continue;
+      const at = Number(key.slice(CORRUPT_KEY_PREFIX.length));
+      out.push({
+        key,
+        at: Number.isFinite(at) ? at : 0,
+        size: (localStorage.getItem(key) || '').length,
+      });
+    }
+  } catch (_) { /* 隐私模式下读不到就算了 */ }
+  return out.sort((a, b) => b.at - a.at);
+}
+
+function pruneCorrupt() {
+  const all = listCorrupt();
+  const now = Date.now();
+  let removed = 0;
+  for (const item of all) {
+    if (item.at < now - CORRUPT_TTL) {
+      try { localStorage.removeItem(item.key); removed++; } catch (_) {}
+    }
+  }
+  for (const item of all.filter((x) => x.at >= now - CORRUPT_TTL).slice(CORRUPT_MAX)) {
+    try { localStorage.removeItem(item.key); removed++; } catch (_) {}
+  }
+  return removed;
+}
+
 function keepCorrupt(raw) {
   try {
     const key = CORRUPT_KEY_PREFIX + Date.now();
     localStorage.setItem(key, raw);
+    pruneCorrupt();
     return key;
   } catch (_) { return null; }
+}
+
+export function clearCorrupt() {
+  let removed = 0;
+  for (const item of listCorrupt()) {
+    try { localStorage.removeItem(item.key); removed++; } catch (_) {}
+  }
+  return removed;
+}
+
+/* v1.7：粗算本项目在 localStorage 里占用的字节数（实时数据 + 快照 + 损坏留档），
+   navigator.storage.estimate() 给不出 per-key 明细，这里自己量 */
+export function estimateStorageBytes() {
+  let total = 0;
+  const add = (k) => {
+    try {
+      const v = localStorage.getItem(k);
+      if (v) total += k.length + v.length;
+    } catch (_) {}
+  };
+  add(KEY);
+  add(BACKUPS_KEY);
+  for (const item of listCorrupt()) total += item.key.length + item.size;
+  return total;
 }
 /* 用最近一份可用快照拼回状态（不碰 localStorage，交给调用方决定是否落盘） */
 function recoverFromBackup() {
@@ -294,6 +355,17 @@ export function removeSession(id) {
   const idx = state.sessions.findIndex((s) => s.id === id);
   if (idx < 0) return null;
   const [removed] = state.sessions.splice(idx, 1);
+  commit();
+  return removed;
+}
+/* v1.7 批量删除：一次移除多条只 commit 一次（避免逐条删除反复写盘）；
+   动手前先留一份「删除前保护」快照，误删多条也能整体找回 */
+export function removeSessions(ids) {
+  const set = new Set(ids);
+  const removed = state.sessions.filter((s) => set.has(s.id));
+  if (!removed.length) return [];
+  saveBackupSnapshot('pre-batch');
+  state.sessions = state.sessions.filter((s) => !set.has(s.id));
   commit();
   return removed;
 }
@@ -756,6 +828,7 @@ function backupLabel(reason) {
   if (reason === 'pre-restore') return '恢复前保护';
   if (reason === 'pre-import') return '导入前保护';
   if (reason === 'pre-clear') return '清空前保护';
+  if (reason === 'pre-batch') return '删除前保护';
   return '手动备份';
 }
 export function saveBackupSnapshot(reason = 'manual', name = '') {

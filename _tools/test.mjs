@@ -259,10 +259,10 @@ await sleep(700);
 await shot('07-stats');
 const statsInfo = await evaluate(`(() => ({
   title: document.querySelector('#page-title')?.textContent,
-  bars: document.querySelectorAll('.chart-bar').length,
+  bars: document.querySelectorAll('.card')[0]?.querySelectorAll('.chart-bar').length,
   subjects: document.querySelectorAll('.bar-line').length,
   seg: document.querySelectorAll('[data-range]').length,
-  heat: document.querySelectorAll('.card')[2]?.querySelectorAll('div[title]').length,
+  heat: document.querySelectorAll('.heatmap div[title]').length,
 }))()`);
 check('统计页渲染', statsInfo.bars === 7 && statsInfo.seg === 3, statsInfo);
 

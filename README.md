@@ -2,12 +2,12 @@
 
 记下每天学了什么，看见自己的积累。零依赖纯静态 PWA，原生 ES Module + CSS，无构建、无 npm 包，数据只存在浏览器本地。
 
-- 版本：v1.6
+- 版本：v1.7
 - 项目路径：`D:/DeepseekH/project/study-tracker/`
 
 ## Android 应用（APK）
 
-项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（183,000 字节，约 179 KB，versionCode 5 / versionName 1.6，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。
+项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（191,258 字节，约 187 KB，versionCode 6 / versionName 1.7，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`。
 
 - 壳工程：`android/`（aapt2 + javac + d8 + apksigner 手动构建，无 gradle）
 - 构建脚本：`_tools/build-apk.py`；签名密钥 `android/build/release.keystore`（pass `xuexijilu123`）
@@ -270,7 +270,8 @@ study-tracker/
    ├─ test5.mjs              # 安装引导与入口（14 项）
    ├─ test6.mjs              # v1.4 / v1.5：离线完整性 / 性能 / 无障碍 / 新功能（35 项）
    ├─ test7.mjs              # v1.6：写盘失败提示 / 示例数据隔离 / 快照与损坏恢复（18 项）
-   ├─ run-all.mjs            # 一条命令串行跑完 7 个套件（自带静态服务器 + 汇总）
+   ├─ test8.mjs              # v1.7：存储用量 / 损坏留档清理 / 批量操作 / CSV / 统计三卡（21 项）
+   ├─ run-all.mjs            # 一条命令串行跑完 8 个套件（自带静态服务器 + 汇总）
    └─ shot-record.mjs        # 记录页截图脚本
 ```
 
@@ -283,7 +284,7 @@ study-tracker/
 - 原生 JavaScript ES Module，无框架、无打包器、无第三方依赖
 - 原生 CSS（自定义属性 + 明暗主题），v1.4 起按页面拆成 `css/parts/*.css` 分片
 - hash 路由（`#/xxx`），单页应用，6 个视图
-- Web App Manifest + Service Worker：离线缓存（页面网络优先，静态资源缓存优先 + 后台更新），缓存版本 `study-tracker-v11`
+- Web App Manifest + Service Worker：离线缓存（页面网络优先，静态资源缓存优先 + 后台更新），缓存版本 `study-tracker-v12`；manifest 带三个快捷方式（记一笔 / 看统计 / 专注计时）
 - Notification API：计时到点提醒；Android 壳用原生 `Notification` + `NotificationChannel` 常驻通知
 - Canvas 2D 手绘周报海报与打卡卡（无第三方绘图库），Android 端经 MediaStore 存进相册
 - 数据层：`localStorage`，单 store + 订阅驱动重渲染；列表分页由 `querySessions({offset, limit})` 承担，不再有硬上限；v1.5 起按天聚合（`dayBuckets()`）与排序结果都做了缓存，写入时失效、读取时重算一次，统计页 56 格热力图不再 56 次全表扫描
@@ -304,9 +305,10 @@ study-tracker/
 | `test5.mjs` | 14 | 安装引导、通知授权、科目与计时入口 |
 | `test6.mjs` | 35 | v1.4 / v1.5 新增：离线完整性、性能、无障碍、新功能 |
 | `test7.mjs` | 18 | v1.6 新增：写盘失败提示、示例数据隔离、清空前 / 导入前快照、数据损坏恢复 |
-| **合计** | **118** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
+| `test8.mjs` | 21 | v1.7 新增：存储用量与留档清理、批量操作（勾选 / 改科目 / 删除快照）、CSV 转义与导出、统计三卡 |
+| **合计** | **139** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
 
-一条命令跑完全部 7 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
+一条命令跑完全部 8 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
 
 ```bash
 node _tools/run-all.mjs
@@ -330,6 +332,15 @@ node _tools/run-all.mjs <项目根> <输出目录> "C:\Program Files (x86)\Micro
 - **导入前保护快照**：合并导入后 `backups[0].reason === 'pre-import'`
 - **损坏恢复**：先把主数据键写成非 JSON 字符串，重载后数据从快照恢复、`study-tracker/corrupt/` 下留下原始内容、toast 含「恢复」
 
+`test8.mjs` 覆盖 v1.7 的新能力：
+
+- **静态一致性**：SW `study-tracker-v12` 且预载 `js/csv.js`、APK versionCode 6 / versionName 1.7、我的页页脚 v1.7、manifest shortcuts 三入口、`removeSessions` 带「删除前保护」标签、MainActivity 有 `saveFile` 三参桥
+- **csv.js 单元**：BOM 头、表头与行数、含逗号 / 引号字段的转义、日期时间列、文件名 `study-records-YYYYMMDD.csv`
+- **我的页**：存储用量行文案与数值、页脚版本；塞入假损坏留档后「清除损坏留档」行出现，点击确认后留档清零、行消失
+- **记录页批量**：进入批量模式出现勾选圈与底部操作条、勾选 2 条计数正确、批量改科目后 2 条记录 `subjectId` 全部变更、批量删除出现确认弹层且删除后快照 `reason === 'pre-batch'`、全选计数等于当前筛选总数
+- **CSV 导出**：stub `URL.createObjectURL` 后点击 CSV 按钮，锚点文件名格式正确
+- **统计三卡**：趋势 canvas 有宽、图例 4 项、时段分布 24 列、周目标 8 列
+
 单独跑某个套件：
 
 ```bash
@@ -337,7 +348,7 @@ node _tools/server.mjs "D:\path\to\study-tracker" 8123   # test.mjs / test2~test
 node _tools/test6.mjs <项目根> <输出目录> "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 ```
 
-其余脚本参数相同，替换脚本名即可。套件支持用环境变量 `ST_PORT` / `ST_DBG` 指定静态服务端口与 CDP 调试端口（默认 8123 与 9333/9336/9338/9339/9341/9356，test6 自带 8126 服务器，test7 自带 8127）。每个套件结束时写一份 `result*.json` 并在有失败时以退出码 1 结束，输出目录用于存放截图与结果。
+其余脚本参数相同，替换脚本名即可。套件支持用环境变量 `ST_PORT` / `ST_DBG` 指定静态服务端口与 CDP 调试端口（默认 8123 与 9333/9336/9338/9339/9341/9356，test6 自带 8126 服务器，test7 自带 8127，test8 自带 8128）。每个套件结束时写一份 `result*.json` 并在有失败时以退出码 1 结束，输出目录用于存放截图与结果。
 
 三个注意点（踩过坑）：
 
@@ -353,6 +364,30 @@ Android 侧另有两层校验：
 ---
 
 ## 更新日志
+
+### v1.7
+
+**新增**
+
+- **存储用量一目了然**：「我的 → 数据」顶部新增存储用量行，显示本项目数据占用（含主数据、备份快照与损坏留档）；浏览器支持时再补一行全站占用百分比，≥80% 黄色提醒、≥95% 红色警告
+- **损坏留档可清理**：留档最多自动保留 3 份、超过 30 天自动过期清理；「我的 → 数据」新增「清除损坏留档」行（有留档才出现），手动一键清空
+- **PWA 快捷方式**：manifest 增加 3 个 shortcuts，长按桌面图标可直达「记一笔 / 看统计 / 专注计时」
+- **科目趋势折线**：统计页新增最近 28 天趋势卡，取学习时长前 4 的科目各画一条折线（Canvas，暗色主题跟随 CSS 变量），图例注明科目名与时长
+- **学习时段分布**：24 小时柱状图，一眼看出一天里最常开始学习的时段（提示文案给出「凌晨 / 清晨 / 上午 / 中午 / 下午 / 晚上」区间）
+- **周目标达成历史**：最近 8 周逐周目标达成柱状图，达成的周亮色、当前周高亮；只统计设了周目标的科目
+- **记录页批量操作**：「批量」进入选择模式，点记录勾选 / 取消、全选当前筛选下的全部记录；支持批量改科目（弹层选目标科目，一次移动）与批量删除
+- **批量删除保护快照**：删除多条前自动存一份「删除前保护」快照（`reason: pre-batch`），误删可在「我的 → 备份快照」整体找回
+- **CSV 导出**：记录页「CSV」把当前筛选下的全部记录导出为 CSV（BOM + CRLF，Excel 直接打开中文不乱码）；Android 存到 `Download/学习记录/`（复用 v1.6 的 `saveFile` 桥，MIME 传 `text/csv`），网页版走浏览器下载
+- `_tools/test8.mjs`：21 项 v1.7 用例（存储用量 / 留档清理 / 批量操作 / CSV 转义 / 统计三卡 / 版本一致性），套件合计 118 → 139 项；`run-all.mjs` 扩到 8 个套件
+- **git 版本库**：项目纳入 git 管理，此后每个版本打 tag
+
+**改变**
+
+- 批量删除一次 `commit()` 落盘一次，不再逐条写
+- 统计页柱状图增多后，`test.mjs` 的统计断言改为只数周柱状图卡，热力图断言改按 `.heatmap` 定位
+- 版本号 v1.7、`versionCode 6`、离线缓存 `study-tracker-v12`（预载清单补入 `js/csv.js`）
+
+> 本期明确不做：Android 每日定时提醒、多设备 WebDAV 同步。
 
 ### v1.6
 

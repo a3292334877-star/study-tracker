@@ -10,6 +10,29 @@
   "theme_color": "#4f6df5",
   "lang": "zh-CN",
   "categories": ["education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "记一笔",
+      "short_name": "记一笔",
+      "description": "直接打开记录页写今天学了什么",
+      "url": "./index.html#/log",
+      "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "看统计",
+      "short_name": "统计",
+      "description": "查看学习时长趋势和科目占比",
+      "url": "./index.html#/stats",
+      "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "专注计时",
+      "short_name": "计时",
+      "description": "开始一段专注计时，结束自动落记录",
+      "url": "./index.html#/timer",
+      "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

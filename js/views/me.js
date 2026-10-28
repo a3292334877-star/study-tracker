@@ -2,7 +2,7 @@
 import {
   getState, setSetting, exportJSON, importJSON, resetAll,
   listBackups, saveBackupSnapshot, removeBackup, restoreBackup,
-  clearDemo, hasDemoData,
+  clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
 } from '../store.js';
 import {
   applyTheme, openSheet, closeSheet, toast, fmtMinShort, dateKey,
@@ -10,6 +10,13 @@ import {
 } from '../util.js';
 import { isStandalone, canInstall, promptInstall, manualSteps } from '../install.js';
 import { requestNotifyPermission } from '../timer.js';
+
+function fmtBytes(n) {
+  if (!Number.isFinite(n)) return '—';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(2) + ' MB';
+}
 
 export function renderMe(ctx) {
   const state = getState();
@@ -102,6 +109,11 @@ export function renderMe(ctx) {
 
     <div class="section-label">数据</div>
     <section class="card flat fade-in">
+      <div class="row" id="storage-usage-row">
+        <div class="row-ic">📊</div>
+        <div class="row-main"><div class="row-title">存储用量</div><div class="row-sub" id="storage-usage-sub">本项目数据占用 ${fmtBytes(estimateStorageBytes())}</div></div>
+        <div class="row-val" id="storage-usage-val"></div>
+      </div>
       <button class="row" type="button" data-act="autobackup">
         <div class="row-ic">🛡️</div>
         <div class="row-main"><div class="row-title">自动备份</div><div class="row-sub" id="backup-sub">${backupStatusText()}</div></div>
@@ -135,6 +147,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">移除示例数据</div><div class="row-sub">只删第一次打开时的示例内容，自己的都保留</div></div>
         <div class="row-chev">›</div>
       </button>` : ''}
+      ${listCorrupt().length ? `<button class="row" type="button" data-act="clear-corrupt">
+        <div class="row-ic">🩹</div>
+        <div class="row-main"><div class="row-title">清除损坏留档</div><div class="row-sub">数据修复时的原始留底，最多自动保留 3 份</div></div>
+        <div class="row-val">${listCorrupt().length} 份</div>
+      </button>` : ''}
       <button class="row" type="button" data-act="reset">
         <div class="row-ic">🧹</div>
         <div class="row-main"><div class="row-title" style="color:var(--danger)">清空所有数据</div><div class="row-sub">不可恢复，清空之前会自动存一份快照</div></div>
@@ -144,7 +161,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.6 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.7 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -164,6 +181,37 @@ export function renderMe(ctx) {
     const bkRow = root.querySelector('[data-act="backups"]');
     if (bkRow) bkRow.addEventListener('click', () => openBackupsSheet(ctx));
     root.querySelector('[data-act="export"]').addEventListener('click', doExport);
+    const ccRow = root.querySelector('[data-act="clear-corrupt"]');
+    if (ccRow) ccRow.addEventListener('click', async () => {
+      const n = listCorrupt().length;
+      const ok = await confirmSheet({
+        title: '清除损坏留档？',
+        desc: '共 ' + n + ' 份解析失败时的原始数据留底，清除后不可恢复。正常使用不受影响。',
+        okText: '清除', danger: true,
+      });
+      if (!ok) return;
+      const removed = clearCorrupt();
+      haptic();
+      toast('已清除 ' + removed + ' 份留档');
+      ctx.refresh();
+    });
+    // v1.7：浏览器配额是异步的，估算出百分比后再回填；80% 预警 / 95% 危险
+    const usageVal = root.querySelector('#storage-usage-val');
+    const usageSub = root.querySelector('#storage-usage-sub');
+    if (usageVal && navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then((est) => {
+        if (!usageVal.isConnected || !est || !est.quota) return;
+        const pct = Math.round((est.usage || 0) / est.quota * 100);
+        usageVal.textContent = '全站 ' + pct + '%';
+        if (pct >= 95) {
+          usageVal.style.color = 'var(--danger)';
+          usageSub.textContent = '存储即将写满，建议先导出一份备份';
+        } else if (pct >= 80) {
+          usageVal.style.color = 'var(--warn)';
+          usageSub.textContent = '存储占用偏高，建议先导出一份备份';
+        }
+      }).catch(() => {});
+    }
     root.querySelector('[data-act="import"]').addEventListener('click', () => doImport(ctx));
     const demoRow = root.querySelector('[data-act="clear-demo"]');
     if (demoRow) demoRow.addEventListener('click', async () => {

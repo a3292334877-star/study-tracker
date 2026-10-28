@@ -1,11 +1,13 @@
 /* 记录视图：全部学习记录的时间线 + 搜索 / 科目 / 标签筛选
    这是 App 的核心页面 —— 回看「我学过什么」
    v1.4：分页加载（每页 50 条）、科目与标签筛选、关键词高亮 */
-import { querySessions, allTags, groupByDay, getState, getSubject } from '../store.js';
+import { querySessions, allTags, groupByDay, getState, getSubject, removeSession, removeSessions, updateSession } from '../store.js';
 import {
   esc, highlight, fmtMinShort, hhmm, relativeDay, weekdayCN, dateKey, addDays, haptic,
+  openSheet, closeSheet, confirmSheet, toast,
 } from '../util.js';
 import { openRecordSheet } from '../sheets.js';
+import { sessionsToCSV, downloadText, csvFilename } from '../csv.js';
 
 const PAGE = 50;        // 每页条数
 const TAG_CHIPS = 10;   // 标签筛选最多展示的个数
@@ -103,15 +105,29 @@ export function renderLog(ctx) {
       ${tagRail()}
     </div>
 
-    <p class="hint log-count" id="log-count" aria-live="polite">
-      ${totalAll ? `共 ${initial.total} 条 · 合计 ${fmtMinShort(initial.totalMin)}` : '还没有记录'}
-    </p>
+    <div class="log-toolbar fade-in">
+      <p class="hint log-count" id="log-count" aria-live="polite">
+        ${totalAll ? `共 ${initial.total} 条 · 合计 ${fmtMinShort(initial.totalMin)}` : '还没有记录'}
+      </p>
+      <div class="log-tools" id="log-tools"${totalAll ? '' : ' hidden'}>
+        <button class="chip log-chip" type="button" id="log-batch" aria-pressed="false" aria-label="进入批量管理模式">批量</button>
+        <button class="chip log-chip" type="button" id="log-csv" aria-label="把当前列表导出为 CSV 文件">CSV</button>
+      </div>
+    </div>
 
     <div id="log-body"></div>
 
     <div class="log-more" id="log-more" aria-live="polite"></div>
 
     <button class="btn primary block fade-in" type="button" id="log-add" style="margin-top:20px" aria-label="新增一条学习记录">+ 记一笔学习</button>
+
+    <div class="batch-bar" id="batch-bar" hidden role="toolbar" aria-label="批量操作">
+      <button class="chip log-chip" type="button" id="batch-all">全选</button>
+      <span class="batch-count" id="batch-count" aria-live="polite">已选 0 条</span>
+      <button class="chip log-chip" type="button" id="batch-subject" disabled>改科目</button>
+      <button class="chip log-chip batch-danger" type="button" id="batch-del" disabled>删除</button>
+      <button class="chip log-chip" type="button" id="batch-done">完成</button>
+    </div>
   `;
 
   function mount(root) {
@@ -130,6 +146,10 @@ export function renderLog(ctx) {
     let totalMin = 0;
     let hasMore = false;
     let timer = 0;
+    let selectMode = false;   // v1.7 批量管理模式
+    const selected = new Set();
+    const batchBar = root.querySelector('#batch-bar');
+    const batchCount = root.querySelector('#batch-count');
 
     /* 时间范围 → 日期键 */
     function rangeKeys() {
@@ -230,6 +250,7 @@ export function renderLog(ctx) {
       if (!total) { renderEmpty(); more.innerHTML = ''; return; }
       renderGroups();
       renderMore();
+      decorateSelect();
     }
 
     function paint() {
@@ -266,6 +287,7 @@ export function renderLog(ctx) {
       if (!total) { body.innerHTML = ''; renderEmpty(); more.innerHTML = ''; return; }
       renderGroups();
       renderMore();
+      decorateSelect();
     }
     softRefresh = softReload;
 
@@ -299,12 +321,116 @@ export function renderLog(ctx) {
       input.focus();
     }
 
+    /* ---------- v1.7 批量管理 ---------- */
+    function decorateSelect() {
+      body.classList.toggle('selecting', selectMode);
+      batchBar.hidden = !selectMode;
+      body.querySelectorAll('[data-session]').forEach((el) => {
+        let check = el.querySelector('.rec-check');
+        if (selectMode && !check) {
+          check = document.createElement('span');
+          check.className = 'rec-check';
+          check.setAttribute('aria-hidden', 'true');
+          el.prepend(check);
+        }
+        if (!selectMode && check) check.remove();
+        el.classList.toggle('picked', selectMode && selected.has(el.dataset.session));
+      });
+      syncBatchBar();
+    }
+
+    function syncBatchBar() {
+      batchCount.textContent = `已选 ${selected.size} 条`;
+      root.querySelector('#batch-del').disabled = !selected.size;
+      root.querySelector('#batch-subject').disabled = !selected.size;
+    }
+
+    function enterSelect() {
+      selectMode = true;
+      selected.clear();
+      root.querySelector('#log-batch').setAttribute('aria-pressed', 'true');
+      haptic();
+      decorateSelect();
+    }
+
+    function exitSelect() {
+      selectMode = false;
+      selected.clear();
+      root.querySelector('#log-batch').setAttribute('aria-pressed', 'false');
+      decorateSelect();
+    }
+
+    function openBatchSubject() {
+      const subjects = getState().subjects || [];
+      if (!subjects.length) { toast('还没有科目，先去科目页创建'); return; }
+      openSheet(`
+        <h2 class="sheet-title">改到哪个科目？</h2>
+        <p class="sheet-desc">把选中的 ${selected.size} 条记录移动到目标科目。</p>
+        <div class="batch-subjects">
+          ${subjects.map((s) => `<button class="row" type="button" data-sid="${esc(s.id)}">
+            <div class="row-ic" style="background:${s.color}18;color:${s.color}">${s.emoji || '📘'}</div>
+            <div class="row-main"><div class="row-title">${esc(s.name)}</div></div>
+            <div class="row-chev">›</div>
+          </button>`).join('')}
+        </div>
+        <div class="sheet-actions"><button class="btn" type="button" data-act="cancel">取消</button></div>
+      `, (sheet) => {
+        sheet.querySelectorAll('[data-sid]').forEach((b) => b.addEventListener('click', () => {
+          const n = selected.size;
+          const ids = [...selected];
+          exitSelect();
+          ids.forEach((id) => updateSession(id, { subjectId: b.dataset.sid }));
+          haptic();
+          toast(`已把 ${n} 条记录移到新科目`);
+          closeSheet();
+        }));
+        sheet.querySelector('[data-act="cancel"]').addEventListener('click', closeSheet);
+      });
+    }
+
+    async function batchDelete() {
+      const n = selected.size;
+      const ok = await confirmSheet({
+        title: `删除这 ${n} 条记录？`,
+        desc: '删除前会自动存一份保护快照，可以在「我的 · 备份快照」里找回。',
+        okText: '删除', danger: true,
+      });
+      if (!ok) return;
+      const ids = [...selected];
+      exitSelect();
+      removeSessions(ids);
+      haptic();
+      toast(`已删除 ${n} 条记录`);
+    }
+
+    function exportCsv() {
+      if (!total) { toast('没有可导出的记录'); return; }
+      const res = querySessions(params(0, total));
+      if (!res.items.length) { toast('没有可导出的记录'); return; }
+      const csv = sessionsToCSV(res.items);
+      haptic();
+      if (window.AndroidApp && window.AndroidApp.saveFile) {
+        // 壳端把文件写进 Download/学习记录/ 并自行 toast，无需 JS 再提示
+        window.AndroidApp.saveFile(csvFilename('study-records'), csv, 'text/csv');
+        return;
+      }
+      downloadText(csvFilename('study-records'), csv, 'text/csv');
+      toast(`已导出 ${res.total} 条记录`);
+    }
+
     /* ---------- 事件：整页委托，追加的记录无需重新绑定 ---------- */
     root.addEventListener('click', (e) => {
       const start = e.target instanceof Element ? e.target : e.target.parentElement;
       if (!start) return;
       const row = start.closest('[data-session]');
       if (row && body.contains(row)) {
+        if (selectMode) {
+          const id = row.dataset.session;
+          if (selected.has(id)) selected.delete(id); else selected.add(id);
+          row.classList.toggle('picked', selected.has(id));
+          syncBatchBar();
+          return;
+        }
         haptic();
         openRecordSheet({ id: row.dataset.session, onChange: () => paint() });
         return;
@@ -347,6 +473,18 @@ export function renderLog(ctx) {
       haptic();
       openRecordSheet({ onChange: () => ctx.refresh() });
     });
+    // v1.7 批量管理 + CSV
+    root.querySelector('#log-batch').addEventListener('click', () => {
+      if (selectMode) exitSelect(); else enterSelect();
+    });
+    root.querySelector('#log-csv').addEventListener('click', exportCsv);
+    root.querySelector('#batch-all').addEventListener('click', () => {
+      querySessions(params(0, total)).items.forEach((s) => selected.add(s.id));
+      decorateSelect();
+    });
+    root.querySelector('#batch-done').addEventListener('click', exitSelect);
+    root.querySelector('#batch-del').addEventListener('click', batchDelete);
+    root.querySelector('#batch-subject').addEventListener('click', openBatchSubject);
 
     syncRange();
     syncRail('subject');

@@ -351,13 +351,26 @@ public class MainActivity extends Activity {
         /** 导出：把 JSON 写入 Downloads（学习记录-日期.json） */
         @JavascriptInterface
         public void saveFile(String name, String content) {
+            saveFileAs(name, content, "application/json");
+        }
+
+        /** v1.7：CSV 等文本导出可指定 MIME 类型。 */
+        @JavascriptInterface
+        public void saveFile(String name, String content, final String mime) {
+            saveFileAs(name, content, mime == null || mime.isEmpty() ? "application/json" : mime);
+        }
+
+        private void saveFileAs(String name, String content, final String mime) {
             pendingSaveName = name;
             pendingSaveContent = content;
             runOnUiThread(() -> {
                 try {
                     ContentValues cv = new ContentValues();
                     cv.put(MediaStore.Downloads.DISPLAY_NAME, pendingSaveName);
-                    cv.put(MediaStore.Downloads.MIME_TYPE, "application/json");
+                    cv.put(MediaStore.Downloads.MIME_TYPE, mime);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        cv.put(MediaStore.Downloads.RELATIVE_PATH, "Download/学习记录");
+                    }
                     Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
                     if (uri == null) throw new IOException("insert failed");
                     OutputStream os = getContentResolver().openOutputStream(uri);
