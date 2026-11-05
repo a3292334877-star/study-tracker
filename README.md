@@ -2,17 +2,17 @@
 
 记下每天学了什么，看见自己的积累。零依赖纯静态 PWA，原生 ES Module + CSS，无构建、无 npm 包，数据只存在浏览器本地。
 
-- 版本：v1.7
+- 版本：v1.8
 - 项目路径：`D:/DeepseekH/project/study-tracker/`
 
 ## Android 应用（APK）
 
-项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（191,258 字节，约 187 KB，versionCode 6 / versionName 1.7，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`。
+项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（195,354 字节，约 191 KB，versionCode 7 / versionName 1.8，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）。
 
 - 壳工程：`android/`（aapt2 + javac + d8 + apksigner 手动构建，无 gradle）
 - 构建脚本：`_tools/build-apk.py`；签名密钥 `android/build/release.keystore`（pass `xuexijilu123`）
 - 壳是 WebView + 本地 assets（`https://appassets.local` 拦截加载，离线可用，无需任何权限）
-- 原生能力桥 `window.AndroidApp`：主题同步状态栏、Haptic 振动、导出 JSON 到下载目录、文件导入、返回键关弹层、**海报 / 打卡卡存相册**（`saveImage`）、**静默备份落盘**（`saveBackupQuietly`）、**计时常驻通知**（`updateTimerNotification` / `stopTimerNotification`）、通知权限查询与跳转（`notifPermissionGranted` / `openNotifSettings`）
+- 原生能力桥 `window.AndroidApp`：主题同步状态栏、Haptic 振动、导出 JSON 到下载目录、文件导入、返回键关弹层、**海报 / 打卡卡存相册**（`saveImage`）、**静默备份落盘**（`saveBackupQuietly`）、**计时常驻通知**（`updateTimerNotification` / `stopTimerNotification`）、通知权限查询与跳转（`notifPermissionGranted` / `openNotifSettings`）、**每日定时提醒**（`getDailyReminder` / `setDailyReminder`，v1.8）
 - 同步与校验：`_tools/sync-www.py` 把 web 源码镜像进 `android/assets/www`，`_tools/_verify_apk.py` 再回读 APK 断言关键字符串确实在包里
 - 安装：把 `study-tracker.apk` 传到手机点开即可（需允许安装未知来源应用）
 
@@ -364,6 +364,21 @@ Android 侧另有两层校验：
 ---
 
 ## 更新日志
+
+### v1.8
+
+**新增**
+
+- **Android 每日定时提醒**：「我的 → 应用」新增「每日提醒」行（仅 Android 壳内出现）。到点系统通知「今天学了什么？」，点开直达应用；重启手机后由开机广播自动恢复闹钟，不需要先打开应用
+- 提醒调度全在壳层：`ReminderScheduler` 用 `AlarmManager.setExactAndAllowWhileIdle` 精确闹钟（Android 12+ 先查 `SCHEDULE_EXACT_ALARM`，拿不到就退 `setWindow` 十分钟窗口）；到点 `DailyReminderReceiver` 发通知并自动排下一天，`BootReceiver` 开机后按保存的时间重新排程
+- 预设六个时间（08:00 / 12:00 / 18:00 / 20:00 / 21:00 / 22:00），选完即生效，「关闭提醒」随时停。桥方法 `getDailyReminder` / `setDailyReminder`，时间存在壳的 SharedPreferences，前端不存副本——壳是唯一事实来源
+- `_tools/test9.mjs`：12 项 v1.8 用例（manifest 权限与 receiver 声明、调度器 / 接收器 / 桥静态就绪、mock 壳下「行出现 → 打开弹层 → 选时间保存 → 关闭」全流程），套件合计 139 → 151 项；`run-all.mjs` 扩到 9 个套件
+
+**改变**
+
+- 版本号 v1.8、`versionCode 7`、离线缓存 `study-tracker-v13`
+
+> 多设备 WebDAV 同步继续推迟：没有真实的多设备使用诉求前不做。
 
 ### v1.7
 

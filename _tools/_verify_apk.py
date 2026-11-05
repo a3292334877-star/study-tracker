@@ -3,7 +3,7 @@ p=r"D:\DeepseekH\project\study-tracker\android\build\study-tracker.apk"
 print("mtime", time.strftime("%H:%M:%S", time.localtime(os.path.getmtime(p))), "size", os.path.getsize(p))
 z=zipfile.ZipFile(p)
 dex=z.read("classes.dex")
-for k in [b"saveImage", b"saveBackupQuietly", b"openNotifSettings", b"updateTimerNotification"]:
+for k in [b"saveImage", b"saveBackupQuietly", b"openNotifSettings", b"updateTimerNotification", b"DailyReminderReceiver", b"BootReceiver", b"ReminderScheduler", b"setDailyReminder", b"getDailyReminder"]:
     print(k.decode(), k in dex)
 js=z.read("assets/www/js/views/stats.js").decode("utf-8")
 print("stats new toast:", "海报已保存到相册" in js)
@@ -15,5 +15,6 @@ print("csv.js present:", "sessionsToCSV" in csv)
 print("removeSessions + pre-batch:", "removeSessions" in store and "pre-batch" in store)
 print("dex saveFile:", b"saveFile" in dex)
 me=z.read("assets/www/js/views/me.js").decode("utf-8")
-print("me v1.7:", "学习记录 v1.7" in me)
+print("me v1.8:", "学习记录 v1.8" in me)
+print("me daily reminder:", "每日提醒" in me and "data-act=\"daily-reminder\"" in me)
 print("sha256", hashlib.sha256(open(p,"rb").read()).hexdigest()[:16])

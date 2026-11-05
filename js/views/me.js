@@ -91,6 +91,12 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">计时结束提醒</div><div class="row-sub">切到后台也能收到通知</div></div>
         <div class="row-val">${notifyStateText()}</div>
       </button>
+      ${(window.AndroidApp && typeof window.AndroidApp.getDailyReminder === 'function') ? `
+      <button class="row" type="button" data-act="daily-reminder">
+        <div class="row-ic">⏰</div>
+        <div class="row-main"><div class="row-title">每日提醒</div><div class="row-sub">每天固定时间提醒你记一笔</div></div>
+        <div class="row-val" id="daily-reminder-val">${esc(dailyReminderText())}</div>
+      </button>` : ''}
     </section>
 
     <div class="section-label">工具</div>
@@ -161,7 +167,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.7 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.8 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -172,6 +178,8 @@ export function renderMe(ctx) {
     const installRow = root.querySelector('[data-act="install"]');
     if (installRow) installRow.addEventListener('click', openInstallSheet);
     root.querySelector('[data-act="notify"]').addEventListener('click', () => askNotify(ctx));
+    const drRow = root.querySelector('[data-act="daily-reminder"]');
+    if (drRow) drRow.addEventListener('click', () => openDailyReminderSheet(ctx));
     root.querySelector('[data-act="subjects"]').addEventListener('click', () => ctx.go('#/subjects'));
     root.querySelector('[data-act="timer"]').addEventListener('click', () => ctx.go('#/timer'));
     const abRow = root.querySelector('[data-act="autobackup"]');
@@ -304,6 +312,70 @@ async function askNotify(ctx) {
     toast('未开启通知');
   }
   if (ctx && typeof ctx.refresh === 'function') ctx.refresh();
+}
+
+/* ---------- v1.8：每日提醒（仅 Android 壳，Java 侧闹钟为唯一事实来源） ---------- */
+function reminderBridge() {
+  const a = typeof window !== 'undefined' ? window.AndroidApp : null;
+  return a && typeof a.getDailyReminder === 'function' && typeof a.setDailyReminder === 'function' ? a : null;
+}
+
+function dailyReminderText() {
+  const bridge = reminderBridge();
+  if (!bridge) return '关';
+  try {
+    const t = String(bridge.getDailyReminder() || '');
+    return /^\d{1,2}:\d{2}$/.test(t) ? t : '关';
+  } catch (_) { return '关'; }
+}
+
+const REMINDER_PRESETS = ['08:00', '12:00', '18:00', '20:00', '21:00', '22:00'];
+
+function openDailyReminderSheet(ctx) {
+  const bridge = reminderBridge();
+  if (!bridge) return;
+  let cur = '';
+  try { cur = String(bridge.getDailyReminder() || ''); } catch (_) { cur = ''; }
+  if (!/^\d{1,2}:\d{2}$/.test(cur)) cur = '';
+  openSheet(`
+    <h2 class="sheet-title">每日提醒</h2>
+    <p class="sheet-desc">每天在这个时间提醒你记一笔。重启手机也会照常提醒，不需要打开应用。</p>
+    <div class="chips" id="reminder-wrap">
+      ${REMINDER_PRESETS.map((t) => `<button class="chip${t === cur ? ' on' : ''}" type="button" data-time="${t}">${t}</button>`).join('')}
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" type="button" data-act="off">关闭提醒</button>
+      <button class="btn primary" type="button" data-act="ok">保存</button>
+    </div>
+  `, (sheet) => {
+    let picked = cur;
+    sheet.querySelectorAll('[data-time]').forEach((b) => {
+      b.addEventListener('click', () => {
+        picked = b.dataset.time;
+        sheet.querySelectorAll('[data-time]').forEach((x) => x.classList.toggle('on', x === b));
+      });
+    });
+    sheet.querySelector('[data-act="off"]').addEventListener('click', () => {
+      try {
+        bridge.setDailyReminder(picked || '20:00', false);
+        haptic();
+        toast('已关闭每日提醒');
+        closeSheet();
+        ctx.refresh();
+      } catch (_) { toast('设置失败'); }
+    });
+    sheet.querySelector('[data-act="ok"]').addEventListener('click', () => {
+      if (!picked) { toast('先选一个时间'); return; }
+      try {
+        const ok = bridge.setDailyReminder(picked, true);
+        if (ok === false) { toast('设置失败'); return; }
+        haptic();
+        toast('已开启每日提醒 · ' + picked);
+        closeSheet();
+        ctx.refresh();
+      } catch (_) { toast('设置失败'); }
+    });
+  });
 }
 
 function openInstallSheet() {

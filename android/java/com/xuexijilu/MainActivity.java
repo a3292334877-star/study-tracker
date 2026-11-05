@@ -9,6 +9,7 @@ import android.app.PendingIntent;
 import android.content.pm.PackageManager;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -63,6 +64,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         createTimerChannel();
+        createReminderChannel();
 
         web = new WebView(this);
         web.setBackgroundColor(Color.parseColor("#f4f6fb"));
@@ -250,6 +252,17 @@ public class MainActivity extends Activity {
             NotificationChannel ch = new NotificationChannel(CH_TIMER, "专注计时", NotificationManager.IMPORTANCE_LOW);
             ch.setDescription("计时进行中的常驻提醒");
             ch.setShowBadge(false);
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.createNotificationChannel(ch);
+        }
+    }
+
+    /** v1.8：每日提醒通知渠道（提前建好，系统通知设置里可见） */
+    private void createReminderChannel() {
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel ch = new NotificationChannel(DailyReminderReceiver.CH_REMINDER,
+                    "每日提醒", NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setDescription("每天定时提醒记一笔学习记录");
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) nm.createNotificationChannel(ch);
         }
@@ -454,6 +467,31 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public boolean notifPermissionGranted() { return notifAllowed(); }
+
+        /** v1.8：每日提醒当前设置，"HH:mm"（开启）或 ""（关闭） */
+        @JavascriptInterface
+        public String getDailyReminder() {
+            SharedPreferences sp = getSharedPreferences(ReminderScheduler.PREFS, MODE_PRIVATE);
+            if (!sp.getBoolean(ReminderScheduler.KEY_ENABLED, false)) return "";
+            return sp.getString(ReminderScheduler.KEY_TIME, "20:00");
+        }
+
+        /** v1.8：设置每日提醒。time 形如 "20:00"；enabled=false 取消。返回是否成功。 */
+        @JavascriptInterface
+        public boolean setDailyReminder(final String time, final boolean enabled) {
+            try {
+                if (time == null || !time.matches("\\d{1,2}:\\d{2}")) return false;
+                SharedPreferences sp = getSharedPreferences(ReminderScheduler.PREFS, MODE_PRIVATE);
+                sp.edit().putBoolean(ReminderScheduler.KEY_ENABLED, enabled)
+                        .putString(ReminderScheduler.KEY_TIME, time).apply();
+                ReminderScheduler.apply(MainActivity.this);
+                Log.i("xuexijilu", "setDailyReminder " + time + " enabled=" + enabled);
+                return true;
+            } catch (Exception e) {
+                Log.e("xuexijilu", "setDailyReminder failed", e);
+                return false;
+            }
+        }
     }
 
     @Override
