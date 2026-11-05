@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.xuexijilu"
-    android:versionCode="7"
-    android:versionName="1.8">
+    android:versionCode="8"
+    android:versionName="1.9">
 
   <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34"/>
 
@@ -35,6 +35,13 @@
       <intent-filter>
         <action android:name="android.intent.action.BOOT_COMPLETED"/>
       </intent-filter>
+    </receiver>
+
+    <receiver android:name=".TodayWidgetProvider" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today"/>
     </receiver>
   </application>
 </manifest>

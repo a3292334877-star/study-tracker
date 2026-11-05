@@ -1,6 +1,6 @@
 /* 应用入口：路由 + 渲染 */
-import { load, subscribe, getState, setSetting, getLoadNotice, STORAGE_ERROR_EVENT, STORAGE_RECOVERED_EVENT } from './store.js';
-import { applyTheme, isSheetOpen, closeSheet, toast } from './util.js';
+import { load, subscribe, getState, setSetting, getLoadNotice, STORAGE_ERROR_EVENT, STORAGE_RECOVERED_EVENT, minutesOfDay, streak } from './store.js';
+import { applyTheme, isSheetOpen, closeSheet, toast, dateKey } from './util.js';
 import { restore as restoreTimer } from './timer.js';
 
 import { renderHome } from './views/home.js';
@@ -163,6 +163,7 @@ function boot() {
 
   // 数据变化时刷新当前页（计时页自己订阅，避免重绘打断动画）
   subscribe(() => {
+    pushWidget();
     const { name } = parseHash();
     if (name === 'timer') return;
     if (name !== currentRoute) { render(); return; }
@@ -171,6 +172,7 @@ function boot() {
 
   if (!location.hash) location.hash = '#/home';
   render();
+  pushWidget();
 
   // 注册 Service Worker（离线可用；Android 壳不需要）
   if (!window.AndroidApp && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
@@ -187,3 +189,13 @@ function boot() {
 }
 
 boot();
+
+/* v1.9：把今日进度推给 Android 桌面小组件（今日 N 分钟 · 连续 M 天）。
+   只在壳里且有桥时调用；Web/PWA 里 AndroidApp 不存在，直接跳过。 */
+function pushWidget() {
+  try {
+    const bridge = window.AndroidApp;
+    if (!bridge || typeof bridge.updateWidget !== 'function') return;
+    bridge.updateWidget(String(minutesOfDay(dateKey(new Date()))), String(streak()));
+  } catch (e) { /* 小组件只是锦上添花，失败不影响主流程 */ }
+}

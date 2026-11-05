@@ -65,6 +65,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         createTimerChannel();
         createReminderChannel();
+        TodayWidgetProvider.updateAll(this);
 
         web = new WebView(this);
         web.setBackgroundColor(Color.parseColor("#f4f6fb"));
@@ -491,6 +492,13 @@ public class MainActivity extends Activity {
                 Log.e("xuexijilu", "setDailyReminder failed", e);
                 return false;
             }
+        }
+
+        /** v1.9：桌面小组件推送。JS 在启动与每次数据变化时调用。 */
+        @JavascriptInterface
+        public void updateWidget(final String minutes, final String streak) {
+            TodayWidgetProvider.push(MainActivity.this, minutes, streak);
+            Log.i("xuexijilu", "updateWidget minutes=" + minutes + " streak=" + streak);
         }
     }
 

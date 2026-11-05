@@ -2,17 +2,17 @@
 
 记下每天学了什么，看见自己的积累。零依赖纯静态 PWA，原生 ES Module + CSS，无构建、无 npm 包，数据只存在浏览器本地。
 
-- 版本：v1.8
+- 版本：v1.9
 - 项目路径：`D:/DeepseekH/project/study-tracker/`
 
 ## Android 应用（APK）
 
-项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（195,354 字节，约 191 KB，versionCode 7 / versionName 1.8，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）。
+项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（199,665 字节，约 195 KB，versionCode 8 / versionName 1.9，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）；v1.9 起带今日进度桌面小组件（`TodayWidgetProvider`）。
 
 - 壳工程：`android/`（aapt2 + javac + d8 + apksigner 手动构建，无 gradle）
 - 构建脚本：`_tools/build-apk.py`；签名密钥 `android/build/release.keystore`（pass `xuexijilu123`）
 - 壳是 WebView + 本地 assets（`https://appassets.local` 拦截加载，离线可用，无需任何权限）
-- 原生能力桥 `window.AndroidApp`：主题同步状态栏、Haptic 振动、导出 JSON 到下载目录、文件导入、返回键关弹层、**海报 / 打卡卡存相册**（`saveImage`）、**静默备份落盘**（`saveBackupQuietly`）、**计时常驻通知**（`updateTimerNotification` / `stopTimerNotification`）、通知权限查询与跳转（`notifPermissionGranted` / `openNotifSettings`）、**每日定时提醒**（`getDailyReminder` / `setDailyReminder`，v1.8）
+- 原生能力桥 `window.AndroidApp`：主题同步状态栏、Haptic 振动、导出 JSON 到下载目录、文件导入、返回键关弹层、**海报 / 打卡卡存相册**（`saveImage`）、**静默备份落盘**（`saveBackupQuietly`）、**计时常驻通知**（`updateTimerNotification` / `stopTimerNotification`）、通知权限查询与跳转（`notifPermissionGranted` / `openNotifSettings`）、**每日定时提醒**（`getDailyReminder` / `setDailyReminder`，v1.8）、**今日进度小组件**（`updateWidget`，v1.9）
 - 同步与校验：`_tools/sync-www.py` 把 web 源码镜像进 `android/assets/www`，`_tools/_verify_apk.py` 再回读 APK 断言关键字符串确实在包里
 - 安装：把 `study-tracker.apk` 传到手机点开即可（需允许安装未知来源应用）
 
@@ -364,6 +364,19 @@ Android 侧另有两层校验：
 ---
 
 ## 更新日志
+
+### v1.9
+
+**新增**
+
+- **今日进度桌面小组件**：长按桌面添加「学习记录」小部件，显示「今日 N 分钟 · 已连续记录 M 天」，点一下直达应用。数字由前端通过新桥方法 `updateWidget(minutes, streak)` 实时推送——启动时推一次，之后每次数据变化（记一笔、编辑、删除、导入、快照恢复）都会重推
+- 壳端 `TodayWidgetProvider`：数字存 `SharedPreferences('widget')` 并重画所有实例；系统每半小时自检一次，发现存档日期不是今天（今天还没打开过应用）就自动回落到零状态「今天还没记录 / 打开应用记一笔」，绝不显示昨天的数字；超过 60 分钟显示「X 小时 Y 分钟」
+- 新增 `res/xml/widget_today.xml`（`updatePeriodMs` 30 分钟）+ `res/layout/widget_today.xml` + `res/drawable/widget_bg.xml`（16dp 圆角深色底）
+- `_tools/test10.mjs`：10 项 v1.9 用例（manifest / 三个 res / Provider 与桥静态就绪、app.js 推送钩子、mock 壳下「启动即推送 → 记录 +25 分钟后再推送」），套件合计 151 → 161 项；`run-all.mjs` 扩到 10 个套件
+
+**改变**
+
+- 版本号 v1.9、`versionCode 8`、离线缓存 `study-tracker-v14`
 
 ### v1.8
 
