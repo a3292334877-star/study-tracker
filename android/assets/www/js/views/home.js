@@ -1,6 +1,6 @@
 /* 今日视图：今天学了什么 + 今天的任务 */
 import {
-  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, removeTodo, lastNDays, todosOfDay, repeatLabel,
+  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, setTodoDone, removeTodo, lastNDays, todosOfDay, repeatLabel, getSubject,
 } from '../store.js';
 import {
   esc, fmtMin, fmtMinShort, dateKey, weekdayCN, monthDayCN, haptic,
@@ -8,6 +8,14 @@ import {
 } from '../util.js';
 import { openRecordSheet } from '../sheets.js';
 import { recordItem } from './log.js';
+
+function todoMeta(t) {
+  const subj = t.subjectId ? getSubject(t.subjectId) : null;
+  return [
+    repeatLabel(t.repeat) ? repeatLabel(t.repeat) + '重复' : '',
+    subj ? (subj.emoji || '📘') + ' ' + esc(subj.name) : '',
+  ].filter(Boolean).join(' · ');
+}
 
 export function renderHome(ctx) {
   const state = getState();
@@ -77,8 +85,9 @@ export function renderHome(ctx) {
             </button>
             <div class="row-main">
               <div class="row-title" style="${t.done ? 'color:var(--text-3);text-decoration:line-through' : ''}">${esc(t.text)}</div>
-              ${repeatLabel(t.repeat) ? `<div class="row-sub">${repeatLabel(t.repeat)}重复</div>` : ''}
+              ${todoMeta(t) ? `<div class="row-sub">${todoMeta(t)}</div>` : ''}
             </div>
+            <button class="row-chev task-record" type="button" data-act="record-todo" aria-label="记一笔" title="记一笔">✎</button>
             <button class="row-chev" type="button" data-act="del-todo" aria-label="删除">✕</button>
           </div>`).join('') : `
           <div class="empty" style="padding:18px 0"><p>还没有任务，添加一件今天要做的事吧</p></div>`}
@@ -91,6 +100,24 @@ export function renderHome(ctx) {
       el.addEventListener('click', () => {
         haptic();
         openRecordSheet({ onChange: () => ctx.refresh() });
+      });
+    });
+    root.querySelectorAll('[data-act="record-todo"]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const row = el.closest('[data-todo]');
+        const key = row.dataset.date;
+        const id = row.dataset.todo;
+        const item = todosOfDay(key).find((x) => x.id === id);
+        if (!item) return;
+        haptic();
+        openRecordSheet({
+          initial: { title: item.text, subjectId: item.subjectId || undefined, dateKey: key },
+          onChange: () => {
+            setTodoDone(id, key, true);
+            ctx.refresh();
+            toast('已记一笔 · 任务完成 ✓');
+          },
+        });
       });
     });
     root.querySelectorAll('[data-act="toggle-todo"]').forEach((el) => {

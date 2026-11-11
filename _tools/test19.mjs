@@ -1,4 +1,4 @@
-/* test19：v1.18 智能计划（重复任务 + 复制上周计划）
+/* test19：v1.19 智能计划（重复任务 + 复制上周计划）
    静态：store 重复任务函数 / plan 视图与样式 / 版本资源
    数据：daily / weekdays / weekly 投影、按天勾选、单日跳过、删除系列、复制上周
    界面：计划页重复徽章、添加重复任务、勾选单日、跳过单日、删除系列、复制上周
@@ -40,10 +40,10 @@ check('计划页重复任务与复制上周 UI',
     && planSrc.includes('openRepeatDeleteSheet') && planSrc.includes('plan-repeat')
     && homeSrc.includes('repeatLabel'), true);
 check('计划重复任务样式', planCss.includes('.plan-repeat') && planCss.includes('.hero-links'), true);
-check('版本：sw v23 / manifest 17-1.18 / 页脚 v1.18',
-  swSrc.includes("const CACHE = 'study-tracker-v23';")
-    && manifestXml.includes('android:versionCode="17"') && manifestXml.includes('android:versionName="1.18"')
-    && meSrc.includes('学习记录 v1.18'), true);
+check('版本：sw v24 / manifest 18-1.19 / 页脚 v1.19',
+  swSrc.includes("const CACHE = 'study-tracker-v24';")
+    && manifestXml.includes('android:versionCode="18"') && manifestXml.includes('android:versionName="1.19"')
+    && meSrc.includes('学习记录 v1.19'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

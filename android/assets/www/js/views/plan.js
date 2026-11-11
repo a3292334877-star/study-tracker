@@ -1,11 +1,12 @@
 /* 学习计划：把任务排到一周的每一天（v1.17）；重复任务与复制上周（v1.18） */
 import {
-  planWeek, todosOfDay, addTodo, toggleTodo, removeTodo, removeTodoSeries, copyWeekTodos,
-  normRepeat, repeatLabel, dateKey, addDays, parseKey,
+  planWeek, todosOfDay, addTodo, toggleTodo, setTodoDone, removeTodo, removeTodoSeries, copyWeekTodos,
+  normRepeat, repeatLabel, getSubject, activeSubjects, dateKey, addDays, parseKey,
 } from '../store.js';
 import {
   esc, fmtMinShort, weekdayCN, monthDayCN, openSheet, closeSheet, toast, haptic,
 } from '../util.js';
+import { openRecordSheet } from '../sheets.js';
 
 const REPEAT_OPTIONS = [
   { id: 'none', label: '不重复', hint: '只在选中的一天' },
@@ -14,12 +15,14 @@ const REPEAT_OPTIONS = [
   { id: 'weekly', label: '每周', hint: '每周的同一天出现' },
 ];
 
-/* 添加任务弹层：任务内容 + 重复频率，返回 { text, repeat } 或 null */
+/* 添加任务弹层：任务内容 + 重复频率 + 可选科目，返回 { text, repeat, subjectId } 或 null */
 function openAddTask(key) {
   const d = parseKey(key);
+  const subjects = activeSubjects();
   return new Promise((resolve) => {
     let done = false;
     let repeat = 'none';
+    let subjectId = null;
     const finish = (val) => {
       if (done) return;
       done = true;
@@ -34,6 +37,13 @@ function openAddTask(key) {
         <input class="input" id="prompt-input" maxlength="40" placeholder="例如：复习英语听力 30 分钟" />
       </div>
       <div class="field">
+        <label>科目（可选）</label>
+        <div class="chips" id="task-subjects" role="group" aria-label="任务科目">
+          <button class="chip on" type="button" data-tsid="" aria-pressed="true">不指定</button>
+          ${subjects.map((s) => `<button class="chip" type="button" data-tsid="${s.id}" aria-pressed="false">${s.emoji || '📘'} ${esc(s.name)}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
         <label>重复</label>
         <div class="chips" id="repeat-chips" role="group" aria-label="重复频率">
           ${REPEAT_OPTIONS.map((o) => `<button class="chip${o.id === 'none' ? ' on' : ''}" type="button" data-repeat="${o.id}" aria-pressed="${o.id === 'none' ? 'true' : 'false'}" title="${o.hint}">${o.label}</button>`).join('')}
@@ -45,6 +55,16 @@ function openAddTask(key) {
       </div>`,
       (sheet) => {
         const input = sheet.querySelector('#prompt-input');
+        sheet.querySelectorAll('[data-tsid]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            subjectId = btn.dataset.tsid || null;
+            sheet.querySelectorAll('[data-tsid]').forEach((b) => {
+              const on = b === btn;
+              b.classList.toggle('on', on);
+              b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+          });
+        });
         sheet.querySelectorAll('[data-repeat]').forEach((btn) => {
           btn.addEventListener('click', () => {
             repeat = btn.dataset.repeat;
@@ -59,7 +79,7 @@ function openAddTask(key) {
         sheet.querySelector('[data-act="yes"]').addEventListener('click', () => {
           const text = input.value.trim();
           if (!text) { input.focus(); return; }
-          finish({ text, repeat });
+          finish({ text, repeat, subjectId });
         });
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') { e.preventDefault(); sheet.querySelector('[data-act="yes"]').click(); }
@@ -141,8 +161,12 @@ export function renderPlan(ctx) {
           ${day.todos.map((t) => `
             <div class="plan-task${t.done ? ' done' : ''}" data-plan-task="${t.id}" data-plan-date="${day.key}" data-repeat="${normRepeat(t.repeat)}">
               <button class="plan-check" type="button" data-act="toggle-plan" aria-label="${t.done ? '标记未完成' : '标记完成'}">${t.done ? '✓' : '○'}</button>
-              <div class="plan-text">${esc(t.text)}</div>
+              <div class="plan-text">
+                <span class="plan-title">${esc(t.text)}</span>
+                ${t.subjectId && getSubject(t.subjectId) ? `<span class="plan-subject"><i style="background:${getSubject(t.subjectId).color || 'var(--primary)'}"></i>${getSubject(t.subjectId).emoji || '📘'} ${esc(getSubject(t.subjectId).name)}</span>` : ''}
+              </div>
               ${repeatLabel(t.repeat) ? `<span class="plan-repeat">${repeatLabel(t.repeat)}</span>` : ''}
+              ${day.key <= todayKey ? '<button class="task-record" type="button" data-act="record-plan" aria-label="记一笔" title="记一笔">✎</button>' : ''}
               <button class="row-chev" type="button" data-act="del-plan" aria-label="删除任务">✕</button>
             </div>`).join('')}
         </div>` : '<p class="plan-empty">没有安排任务</p>'}
@@ -170,9 +194,27 @@ export function renderPlan(ctx) {
         const key = btn.dataset.addDay;
         const result = await openAddTask(key);
         if (result) {
-          addTodo(result.text, key, result.repeat);
+          addTodo(result.text, key, result.repeat, result.subjectId);
           toast(result.repeat === 'none' ? '任务已添加' : `任务已添加 · ${repeatLabel(result.repeat)}重复`);
         }
+      });
+    });
+    root.querySelectorAll('[data-act="record-plan"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const task = btn.closest('[data-plan-task]');
+        const key = task.dataset.planDate;
+        const id = task.dataset.planTask;
+        const item = todosOfDay(key).find((x) => x.id === id);
+        if (!item) return;
+        haptic();
+        openRecordSheet({
+          initial: { title: item.text, subjectId: item.subjectId || undefined, dateKey: key },
+          onChange: () => {
+            setTodoDone(id, key, true);
+            ctx.refresh();
+            toast('已记一笔 · 任务完成 ✓');
+          },
+        });
       });
     });
     root.querySelectorAll('[data-act="toggle-plan"]').forEach((btn) => {

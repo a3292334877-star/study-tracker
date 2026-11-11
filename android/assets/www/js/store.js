@@ -113,6 +113,7 @@ function normalize(raw) {
       ...t,
       date: todoDate(t),
       repeat: normRepeat(t.repeat),
+      subjectId: t.subjectId ? String(t.subjectId) : null,
       doneDates: Array.isArray(t.doneDates) ? t.doneDates.filter(isDateKey) : [],
       skipDates: Array.isArray(t.skipDates) ? t.skipDates.filter(isDateKey) : [],
     })),
@@ -920,7 +921,7 @@ export function planWeek(anchorKey) {
     minutes: days.reduce((s, d) => s + d.minutes, 0),
   };
 }
-export function addTodo(text, date, repeat = 'none') {
+export function addTodo(text, date, repeat = 'none', subjectId = null) {
   const rep = normRepeat(repeat);
   const todo = {
     id: uid(),
@@ -929,6 +930,7 @@ export function addTodo(text, date, repeat = 'none') {
     createdAt: Date.now(),
     date: isDateKey(date) ? date : dateKey(new Date()),
     repeat: rep,
+    subjectId: subjectId || null,
   };
   if (rep !== 'none') {
     todo.doneDates = [];
@@ -956,6 +958,23 @@ export function toggleTodo(id, date) {
   commit();
 }
 /* 删除普通任务；重复任务传日期时只跳过这一天，系列本身保留（全部删除见 removeTodoSeries） */
+/* 把任务直接设为完成/未完成（不切换），供「记一笔后自动完成」使用 */
+export function setTodoDone(id, date, done = true) {
+  const t = state.todos.find((x) => x.id === id);
+  if (!t) return;
+  const flag = Boolean(done);
+  if (normRepeat(t.repeat) === 'none') {
+    t.done = flag;
+    commit();
+    return;
+  }
+  const key = isDateKey(date) ? date : todoDate(t);
+  if (!Array.isArray(t.doneDates)) t.doneDates = [];
+  const idx = t.doneDates.indexOf(key);
+  if (flag && idx < 0) t.doneDates.push(key);
+  if (!flag && idx >= 0) t.doneDates.splice(idx, 1);
+  commit();
+}
 export function removeTodo(id, date) {
   const t = state.todos.find((x) => x.id === id);
   if (!t) return;
@@ -995,7 +1014,7 @@ export function copyWeekTodos(fromAnchor, toAnchor) {
         const text = String(t.text || '').trim();
         const sig = dstKey + '|' + text;
         if (!text || existing.has(sig)) return;
-        state.todos.push({ id: uid(), text, done: false, createdAt: Date.now(), date: dstKey, repeat: 'none', copiedFrom: t.id });
+        state.todos.push({ id: uid(), text, done: false, createdAt: Date.now(), date: dstKey, repeat: 'none', subjectId: t.subjectId || null, copiedFrom: t.id });
         existing.add(sig);
         added += 1;
       });

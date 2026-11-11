@@ -79,9 +79,11 @@ function tplHTML() {
 /* ---------- 核心表单：记一笔 / 编辑 ----------
    id     传入则为编辑模式
    endTs  记录的结束时间（决定日期），默认此刻
+   initial 预填 { title, subjectId, dateKey, minutes, tags, note }（v1.19：任务一键记一笔）
    onChange 数据变更回调
+   onSaved  新建成功后的回调，参数为新建的记录
    back   关闭/保存后回到哪个弹层 */
-export function openRecordSheet({ id = null, endTs, onChange, back, heading, desc } = {}) {
+export function openRecordSheet({ id = null, endTs, onChange, onSaved, initial, back, heading, desc } = {}) {
   const editing = Boolean(id);
   const session = editing ? getSession(id) : null;
   if (editing && !session) return;
@@ -93,15 +95,32 @@ export function openRecordSheet({ id = null, endTs, onChange, back, heading, des
   const lastSub = lastSession ? getSubject(lastSession.subjectId) : null;
 
   const allSubs = getState().subjects;
-  const subjects = allSubs.filter((s) => !s.archived || s.id === (editing ? session.subjectId : null));
+  const wantedSid = editing ? session.subjectId : (initial && initial.subjectId ? String(initial.subjectId) : null);
+  const subjects = allSubs.filter((s) => !s.archived || s.id === wantedSid);
   const base = editing ? session : null;
-  const end = base ? base.end : (endTs || Date.now());
+  const initialKey = (!base && initial && /^\d{4}-\d{2}-\d{2}$/.test(String(initial.dateKey || '')))
+    ? String(initial.dateKey)
+    : null;
+  let end = base ? base.end : (endTs || Date.now());
+  if (initialKey) {
+    if (initialKey === dateKey(new Date())) {
+      end = Date.now();
+    } else {
+      const d0 = parseKey(initialKey);
+      d0.setHours(20, 0, 0, 0);
+      end = d0.getTime();
+    }
+  }
   const initKey = dateKey(new Date(end));
-  const initTitle = base ? (base.title || '') : '';
-  const initNote = base ? (base.note || '') : '';
-  const initMin = base ? base.minutes : 30;
-  const initTags = base ? (base.tags || []).join(' ') : '';
-  const initSid = base ? base.subjectId : (subjects[0] ? subjects[0].id : (allSubs[0] ? allSubs[0].id : null));
+  const initTitle = base ? (base.title || '') : (initial && initial.title ? String(initial.title).slice(0, 40) : '');
+  const initNote = base ? (base.note || '') : (initial && initial.note ? String(initial.note) : '');
+  const initMin = base ? base.minutes
+    : (initial && initial.minutes !== undefined && Number.isFinite(Number(initial.minutes))
+      ? Math.max(0, Math.round(Number(initial.minutes))) : 30);
+  const initTags = base ? (base.tags || []).join(' ')
+    : (initial && Array.isArray(initial.tags) ? initial.tags.join(' ') : '');
+  const initSid = base ? base.subjectId
+    : (wantedSid || (subjects[0] ? subjects[0].id : (allSubs[0] ? allSubs[0].id : null)));
 
   openSheet(`
     <h2 class="sheet-title">${heading || (editing ? '编辑记录' : '记一笔学习')}</h2>
@@ -276,11 +295,12 @@ export function openRecordSheet({ id = null, endTs, onChange, back, heading, des
         updateSession(id, { subjectId: sid, title, note, minutes, tags, end: endTs });
         toast('已保存');
       } else {
-        addSession({
+        const created = addSession({
           subjectId: sid, title, note, minutes, tags, end: endTs,
           start: endTs - minutes * 60000,
         });
         toast(minutes > 0 ? `已记下 · ${fmtMinShort(minutes)}` : '已记下');
+        if (onSaved) onSaved(created);
       }
       closeOrBack();
       if (onChange) onChange();

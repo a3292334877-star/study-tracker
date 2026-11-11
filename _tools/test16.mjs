@@ -43,10 +43,10 @@ check('成就视图与海报函数',
 check('路由与我的页入口',
   appSrc.includes("import { renderAchievements }") && appSrc.includes('achievements: renderAchievements')
     && meSrc.includes('data-act="achievements"') && meSrc.includes('achievementStats()'), true);
-check('版本：sw v23 / manifest 17-1.18 / 页脚 v1.18 / 样式',
-  swSrc.includes("const CACHE = 'study-tracker-v23';")
-    && manifestXml.includes('android:versionCode="17"') && manifestXml.includes('android:versionName="1.18"')
-    && meSrc.includes('学习记录 v1.18')
+check('版本：sw v24 / manifest 18-1.19 / 页脚 v1.19 / 样式',
+  swSrc.includes("const CACHE = 'study-tracker-v24';")
+    && manifestXml.includes('android:versionCode="18"') && manifestXml.includes('android:versionName="1.19"')
+    && meSrc.includes('学习记录 v1.19')
     && swSrc.includes('./js/views/achievements.js') && swSrc.includes('./css/parts/achievements.css')
     && indexHtml.includes('css/parts/achievements.css'), true);
 
