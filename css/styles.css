@@ -236,6 +236,16 @@ button.tab:active .tab-fab{transform:scale(.94)}
 .timer-actions{display:flex;gap:12px;margin-top:22px;width:100%;max-width:320px}
 .timer-actions .btn{flex:1;height:54px;border-radius:18px;font-size:16px}
 .btn-round{flex:none;width:54px;height:54px;border-radius:18px;display:grid;place-items:center;background:var(--surface-2);color:var(--text-2)}
+/* 番茄循环开关（v1.13） */
+.cycle-row{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;margin-top:14px;padding:10px 14px;border-radius:16px;background:var(--surface);box-shadow:var(--shadow-1);text-align:left}
+.cycle-emoji{font-size:20px;line-height:1}
+.cycle-main{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.cycle-title{font-size:13.5px;font-weight:700;color:var(--text)}
+.cycle-sub{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cycle-switch{flex:none;width:38px;height:22px;border-radius:99px;background:var(--surface-3);position:relative;transition:background .18s}
+.cycle-switch::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .18s}
+.cycle-row[aria-pressed="true"] .cycle-switch{background:var(--primary,#4f6df5)}
+.cycle-row[aria-pressed="true"] .cycle-switch::after{transform:translateX(16px)}
 
 /* ---------- chart ---------- */
 .chart{display:flex;align-items:flex-end;gap:6px;height:130px;padding-top:6px;overflow-x:auto;scrollbar-width:none}

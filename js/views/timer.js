@@ -2,8 +2,9 @@
 import {
   MODES, subscribeTimer, getTimer, elapsedMs, displayMs, progress,
   start, pause, reset, finish, configure, setSubject, requestNotifyPermission,
+  getCycle, restartCycle,
 } from '../timer.js';
-import { getState, getSubject, activeSubjects } from '../store.js';
+import { getState, getSubject, activeSubjects, setSetting } from '../store.js';
 import { esc, fmtClock, fmtMinShort, openSheet, closeSheet, toast, haptic, confirmSheet } from '../util.js';
 import { openRecordSheet } from '../sheets.js';
 
@@ -17,6 +18,15 @@ export function renderTimer(ctx) {
       <div class="chips" id="mode-chips" style="margin-bottom:10px">
         ${Object.entries(MODES).map(([k, v]) => `<button class="chip" type="button" data-mode="${k}">${v.label}</button>`).join('')}
       </div>
+
+      <button class="cycle-row" type="button" id="cycle-toggle" aria-pressed="false">
+        <span class="cycle-emoji">🍅</span>
+        <span class="cycle-main">
+          <span class="cycle-title">番茄循环</span>
+          <span class="cycle-sub" id="cycle-sub"></span>
+        </span>
+        <span class="cycle-switch" aria-hidden="true"></span>
+      </button>
 
       <div class="ring">
         <svg viewBox="0 0 260 260">
@@ -78,11 +88,13 @@ export function renderTimer(ctx) {
 
     /* 心跳每 500ms 触发一次，但「看见的东西」往往没变（正计时时秒数一秒
        才跳一次，环形进度几乎不动）——签名没变就跳过整块 DOM 重排（v1.5） */
+    const cyc = getCycle();
     const sig = [
       t.mode, t.style, t.status, t.targetMs, t.subjectId || '',
       Math.floor(displayMs() / 1000),
       Math.round(progress() * 1000),
       activeSubjects().length,
+      cyc.enabled, cyc.round, cyc.focusMin, cyc.shortMin, cyc.longMin, cyc.roundsPerLong,
     ].join('|');
     if (sig === lastSig) return;
     lastSig = sig;
@@ -93,12 +105,20 @@ export function renderTimer(ctx) {
     const subDot = root.querySelector('#subject-dot');
     const hintEl = root.querySelector('#timer-hint');
     const segEl = root.querySelector('#style-seg');
+    const cycEl = root.querySelector('#cycle-toggle');
+    const cycSub = root.querySelector('#cycle-sub');
 
     timeEl.textContent = fmtClock(displayMs());
+    const roundTag = cyc.enabled ? ` · 第 ${cyc.round}/${cyc.roundsPerLong} 轮` : '';
     stateEl.textContent =
-      t.status === 'running' ? (t.mode === 'focus' ? '专注中' : '休息中')
-        : t.status === 'paused' ? '已暂停'
-          : t.mode === 'focus' ? '准备开始' : '准备休息';
+      t.status === 'running' ? (t.mode === 'focus' ? '专注中' : '休息中') + roundTag
+        : t.status === 'paused' ? '已暂停' + roundTag
+          : t.mode === 'focus' ? '准备开始' + roundTag : '准备休息' + roundTag;
+
+    if (cycEl) {
+      cycEl.setAttribute('aria-pressed', cyc.enabled ? 'true' : 'false');
+      cycSub.textContent = `专注 ${cyc.focusMin} · 短休 ${cyc.shortMin} · 长休 ${cyc.longMin} · 每 ${cyc.roundsPerLong} 轮长休`;
+    }
 
     progEl.setAttribute('stroke-dashoffset', (C * (1 - progress())).toFixed(1));
     mainBtn.textContent = t.status === 'running' ? '暂停' : t.status === 'paused' ? '继续' : '开始';
@@ -109,7 +129,7 @@ export function renderTimer(ctx) {
     });
     root.querySelectorAll('[data-style]').forEach((b) => b.classList.toggle('on', b.dataset.style === t.style));
 
-    segEl.style.display = t.mode === 'focus' ? '' : 'none';
+    segEl.style.display = t.mode === 'focus' && !cyc.enabled ? '' : 'none';
     segEl.querySelectorAll('[data-style]').forEach((b) => {
       const disabled = t.status === 'running';
       b.disabled = disabled;
@@ -117,11 +137,15 @@ export function renderTimer(ctx) {
     });
 
     const presetWrap = root.querySelector('#preset-chips');
-    presetWrap.style.display = t.mode === 'focus' && t.style === 'down' ? '' : 'none';
+    presetWrap.style.display = t.mode === 'focus' && t.style === 'down' && !cyc.enabled ? '' : 'none';
 
-    hintEl.textContent = t.mode === 'focus'
-      ? (t.style === 'up' ? '正计时：记录真实专注时长，可随时结束' : `倒计时：${Math.round(t.targetMs / 60000)} 分钟后自动结束并记录`)
-      : `休息 ${Math.round(t.targetMs / 60000)} 分钟，结束后不会记入学习时长`;
+    hintEl.textContent = cyc.enabled
+      ? (t.mode === 'focus'
+        ? `番茄循环：第 ${cyc.round}/${cyc.roundsPerLong} 轮专注 · ${Math.round(t.targetMs / 60000)} 分钟`
+        : `休息 ${Math.round(t.targetMs / 60000)} 分钟，结束后自动进入下一轮专注`)
+      : t.mode === 'focus'
+        ? (t.style === 'up' ? '正计时：记录真实专注时长，可随时结束' : `倒计时：${Math.round(t.targetMs / 60000)} 分钟后自动结束并记录`)
+        : `休息 ${Math.round(t.targetMs / 60000)} 分钟，结束后不会记入学习时长`;
 
     const subject = getSubject(t.subjectId) || activeSubjects()[0] || null;
     if (subject) {
@@ -201,12 +225,25 @@ export function renderTimer(ctx) {
 
     root.querySelector('#btn-more').addEventListener('click', () => {
       const t = getTimer();
+      const cyc = getCycle();
       openSheet(`
         <h2 class="sheet-title">更多选项</h2>
-        <p class="sheet-desc">调整专注目标时长，立即生效。</p>
+        <p class="sheet-desc">调整专注目标时长；番茄循环的休息时长也在这里改。</p>
         <div class="field">
           <label>专注时长（分钟）</label>
           <input class="input" id="dur-input" type="number" min="1" max="180" value="${Math.round(t.targetMs / 60000)}" />
+        </div>
+        <div class="field">
+          <label>短休息（分钟）</label>
+          <input class="input" id="short-input" type="number" min="1" max="60" value="${cyc.shortMin}" />
+        </div>
+        <div class="field">
+          <label>长休息（分钟）</label>
+          <input class="input" id="long-input" type="number" min="1" max="120" value="${cyc.longMin}" />
+        </div>
+        <div class="field">
+          <label>每几轮长休息</label>
+          <input class="input" id="rounds-input" type="number" min="1" max="12" value="${cyc.roundsPerLong}" />
         </div>
         <div class="sheet-actions">
           <button class="btn" type="button" data-act="close">取消</button>
@@ -216,8 +253,15 @@ export function renderTimer(ctx) {
         sheet.querySelector('[data-act="close"]').addEventListener('click', closeSheet);
         sheet.querySelector('[data-act="ok"]').addEventListener('click', () => {
           const v = Number(sheet.querySelector('#dur-input').value);
-          if (!v || v < 1) { toast('请输入有效时长'); return; }
+          const sm = Number(sheet.querySelector('#short-input').value);
+          const lm = Number(sheet.querySelector('#long-input').value);
+          const rd = Number(sheet.querySelector('#rounds-input').value);
+          if (!v || v < 1 || !sm || sm < 1 || !lm || lm < 1 || !rd || rd < 1) { toast('请输入有效时长'); return; }
           if (getTimer().status === 'running') { toast('请先暂停当前计时'); return; }
+          setSetting('pomodoroMin', v);
+          setSetting('pomodoroShortMin', Math.round(sm));
+          setSetting('pomodoroLongMin', Math.round(lm));
+          setSetting('pomodoroRounds', Math.round(rd));
           configure({ mode: 'focus', targetMin: v });
           closeSheet();
           paint();
@@ -225,11 +269,30 @@ export function renderTimer(ctx) {
       });
     });
 
+    root.querySelector('#cycle-toggle').addEventListener('click', () => {
+      haptic();
+      const t = getTimer();
+      if (t.status === 'running') { toast('请先暂停当前计时'); return; }
+      const cyc = getCycle();
+      const on = !cyc.enabled;
+      setSetting('pomodoroCycle', on);
+      restartCycle();
+      if (on) {
+        configure({ mode: 'focus', style: 'down', targetMin: cyc.focusMin });
+        toast('番茄循环已开启');
+      } else {
+        configure({ mode: 'focus' });
+        toast('番茄循环已关闭');
+      }
+      paint();
+    });
+
     root.querySelectorAll('[data-mode]').forEach((b) => {
       b.addEventListener('click', () => {
         haptic();
         const mode = b.dataset.mode;
         if (getTimer().status === 'running') { toast('请先暂停当前计时'); return; }
+        if (getCycle().enabled) setSetting('pomodoroCycle', false);
         if (mode === getTimer().mode && getTimer().accumulatedMs === 0) return;
         configure({ mode });
         paint();
@@ -239,6 +302,7 @@ export function renderTimer(ctx) {
     root.querySelectorAll('[data-style]').forEach((b) => {
       b.addEventListener('click', () => {
         if (getTimer().status === 'running') { toast('请先暂停当前计时'); return; }
+        if (getCycle().enabled) setSetting('pomodoroCycle', false);
         configure({ style: b.dataset.style });
         paint();
       });
@@ -247,6 +311,7 @@ export function renderTimer(ctx) {
     root.querySelectorAll('[data-preset]').forEach((b) => {
       b.addEventListener('click', () => {
         if (getTimer().status === 'running') { toast('请先暂停当前计时'); return; }
+        if (getCycle().enabled) setSetting('pomodoroCycle', false);
         configure({ mode: 'focus', style: 'down', targetMin: Number(b.dataset.preset) });
         paint();
       });

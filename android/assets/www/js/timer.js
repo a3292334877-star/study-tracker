@@ -23,6 +23,7 @@ const state = {
   startedAtWall: 0,
   sessionId: null,
   targetReached: false,
+  cycleRound: 1,       // 番茄循环：当前处于第几轮专注（v1.13）
 };
 
 let ticker = 0;
@@ -47,6 +48,7 @@ function persist() {
     startedAtWall: state.startedAtWall,
     sessionId: state.sessionId,
     targetReached: state.targetReached,
+    cycleRound: state.cycleRound,
   });
 }
 
@@ -84,6 +86,39 @@ export function configure({ mode, style, targetMin, subjectId } = {}) {
   persist();
   emit();
   return true;
+}
+
+/* ---------- 番茄循环（v1.13） ---------- */
+/** 读取番茄循环设置（来自 settings，缺失时用默认值） */
+export function getCycle() {
+  const s = (getState().settings) || {};
+  return {
+    enabled: s.pomodoroCycle === true,
+    focusMin: Math.max(1, Math.round(s.pomodoroMin || 25)),
+    shortMin: Math.max(1, Math.round(s.pomodoroShortMin || 5)),
+    longMin: Math.max(1, Math.round(s.pomodoroLongMin || 15)),
+    roundsPerLong: Math.max(1, Math.round(s.pomodoroRounds || 4)),
+    round: state.cycleRound || 1,
+  };
+}
+
+/** 纯函数：给定当前阶段与轮次，算出下一阶段。方便单测。 */
+export function planNextPhase({ mode, round, roundsPerLong, focusMin, shortMin, longMin }) {
+  const r = Math.max(1, Math.round(round || 1));
+  const per = Math.max(1, Math.round(roundsPerLong || 4));
+  if (mode === 'focus') {
+    const isLong = r % per === 0;
+    return { mode: isLong ? 'long' : 'short', targetMin: isLong ? Math.max(1, Math.round(longMin || 15)) : Math.max(1, Math.round(shortMin || 5)), round: r };
+  }
+  const nextRound = r + 1;
+  return { mode: 'focus', targetMin: Math.max(1, Math.round(focusMin || 25)), round: nextRound > per ? 1 : nextRound };
+}
+
+/** 把轮次拨回第 1 轮（开启番茄循环 / 手动重置时用） */
+export function restartCycle() {
+  state.cycleRound = 1;
+  persist();
+  emit();
 }
 
 export function setSubject(subjectId) {
@@ -184,10 +219,40 @@ function stopTicker() {
 }
 function complete() {
   const wasFocus = state.mode === 'focus';
+  const cyc = getCycle();
   const result = finish({ early: false });
-  if (wasFocus && result.ok) notify('专注完成', `本次 ${result.minutes} 分钟，已记入今天`);
-  else notify('休息结束', '准备好开始下一段专注了吗？');
-  listeners.forEach((fn) => { try { fn(state, { completed: true, result }); } catch (err) { console.error(err); } });
+
+  let next = null;
+  if (cyc.enabled) {
+    next = planNextPhase({
+      mode: wasFocus ? 'focus' : state.mode,
+      round: state.cycleRound,
+      roundsPerLong: cyc.roundsPerLong,
+      focusMin: cyc.focusMin,
+      shortMin: cyc.shortMin,
+      longMin: cyc.longMin,
+    });
+  }
+
+  if (wasFocus && result.ok) {
+    if (cyc.enabled && next) {
+      notify('专注完成', `本次 ${result.minutes} 分钟，${next.mode === 'long' ? '长休息' : '短休息'} ${next.targetMin} 分钟`);
+    } else {
+      notify('专注完成', `本次 ${result.minutes} 分钟，已记入今天`);
+    }
+  } else if (cyc.enabled && next) {
+    notify('休息结束', `开始第 ${next.round} 轮专注`);
+  } else {
+    notify('休息结束', '准备好开始下一段专注了吗？');
+  }
+
+  if (cyc.enabled && next) {
+    if (next.mode === 'focus') state.cycleRound = next.round;
+    configure({ mode: next.mode, targetMin: next.targetMin });
+    start();   // 自动进入下一段：专注后自动休息，休息后自动专注
+  }
+
+  listeners.forEach((fn) => { try { fn(state, { completed: true, result, cycle: next }); } catch (err) { console.error(err); } });
 }
 
 export function notify(title, body) {
