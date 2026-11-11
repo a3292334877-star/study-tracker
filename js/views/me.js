@@ -3,7 +3,7 @@ import {
   getState, setSetting, exportJSON, importJSON, resetAll,
   listBackups, saveBackupSnapshot, removeBackup, restoreBackup,
   clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
-  tagStats, renameTag, removeTag,
+  tagStats, renameTag, removeTag, importSessions,
 } from '../store.js';
 import {
   applyTheme, openSheet, closeSheet, toast, fmtMinShort, dateKey,
@@ -11,6 +11,7 @@ import {
 } from '../util.js';
 import { isStandalone, canInstall, promptInstall, manualSteps } from '../install.js';
 import { requestNotifyPermission } from '../timer.js';
+import { csvToRecords } from '../csv.js';
 
 function fmtBytes(n) {
   if (!Number.isFinite(n)) return '—';
@@ -154,6 +155,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">导入数据</div><div class="row-sub">从备份文件恢复，可合并或覆盖</div></div>
         <div class="row-chev">›</div>
       </button>
+      <button class="row" type="button" data-act="import-csv">
+        <div class="row-ic">📄</div>
+        <div class="row-main"><div class="row-title">导入 CSV</div><div class="row-sub">从表格批量补记录，科目按名字自动对上</div></div>
+        <div class="row-chev">›</div>
+      </button>
       ${hasDemoData() ? `<button class="row" type="button" data-act="clear-demo">
         <div class="row-ic">🧪</div>
         <div class="row-main"><div class="row-title">移除示例数据</div><div class="row-sub">只删第一次打开时的示例内容，自己的都保留</div></div>
@@ -173,7 +179,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.10 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.11 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -229,6 +235,7 @@ export function renderMe(ctx) {
       }).catch(() => {});
     }
     root.querySelector('[data-act="import"]').addEventListener('click', () => doImport(ctx));
+    root.querySelector('[data-act="import-csv"]').addEventListener('click', () => doImportCSV(ctx));
     const demoRow = root.querySelector('[data-act="clear-demo"]');
     if (demoRow) demoRow.addEventListener('click', async () => {
       const ok = await confirmSheet({
@@ -576,6 +583,66 @@ function openImportModeSheet(text, data, ctx) {
       } catch (err) {
         console.error(err);
         toast('备份文件格式不对');
+      }
+    });
+  });
+}
+
+/* ---------- 导入 CSV（v1.11） ---------- */
+function doImportCSV(ctx) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv,text/csv';
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      let parsed = null;
+      try { parsed = csvToRecords(text); } catch (err) { console.error(err); toast('CSV 解析失败'); return; }
+      if (!parsed.records.length) {
+        toast(parsed.skipped.length ? '没有可导入的记录（' + parsed.skipped.length + ' 行被跳过）' : 'CSV 里没有记录');
+        return;
+      }
+      openCsvImportSheet(parsed, ctx);
+    };
+    reader.onerror = () => toast('读取文件失败');
+    reader.readAsText(file);
+  });
+  input.click();
+}
+
+function openCsvImportSheet(parsed, ctx) {
+  const { records, skipped } = parsed;
+  const reasonCount = {};
+  skipped.forEach((s) => { reasonCount[s.reason] = (reasonCount[s.reason] || 0) + 1; });
+  const reasonText = Object.keys(reasonCount).map((k) => k + ' ' + reasonCount[k] + ' 行').join('、');
+  const totalMin = records.reduce((n, r) => n + r.minutes, 0);
+  const subjectNames = [...new Set(records.map((r) => r.subjectName).filter(Boolean))];
+  openSheet(`
+    <h2 class="sheet-title">导入 CSV</h2>
+    <p class="sheet-desc">可导入 <b>${records.length}</b> 条，合计 ${fmtMinShort(totalMin)}${skipped.length ? '；跳过 ' + skipped.length + ' 行（' + esc(reasonText) + '）' : ''}。</p>
+    <p class="sheet-desc">涉及 ${subjectNames.length} 个科目，名字对不上的会自动新建；重复记录（科目 + 标题 + 开始时间 + 时长都相同）会跳过。</p>
+    <div class="sheet-actions">
+      <button class="btn" type="button" data-act="no">取消</button>
+      <button class="btn primary" type="button" data-act="yes">导入</button>
+    </div>
+  `, (sheet) => {
+    sheet.querySelector('[data-act="no"]').addEventListener('click', closeSheet);
+    sheet.querySelector('[data-act="yes"]').addEventListener('click', () => {
+      try {
+        const res = importSessions(records);
+        closeSheet();
+        haptic();
+        const bits = ['已导入 ' + res.added + ' 条'];
+        if (res.duplicates) bits.push('跳过重复 ' + res.duplicates + ' 条');
+        if (res.createdSubjects) bits.push('新建科目 ' + res.createdSubjects + ' 个');
+        toast(bits.join('，'));
+        ctx.refresh();
+      } catch (err) {
+        console.error(err);
+        toast('导入失败');
       }
     });
   });

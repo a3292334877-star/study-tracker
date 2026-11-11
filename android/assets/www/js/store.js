@@ -849,6 +849,69 @@ function mergeState(incoming) {
   };
 }
 
+/* ---------- CSV 导入（v1.11） ----------
+   records 来自 csv.js 的 csvToRecords()：{ subjectName,title,tags,minutes,note,start,end }
+   科目按名字复用，名字不存在时自动新建（autoCreateSubjects）；
+   dedupe 时按「科目 + 标题 + 开始时间 + 分钟」判重，重复的不再插入。
+   整批只提交一次，导入前先存一份「导入前保护」快照。 */
+export function importSessions(records, { autoCreateSubjects = true, dedupe = true } = {}) {
+  if (!Array.isArray(records) || !records.length) {
+    return { added: 0, duplicates: 0, createdSubjects: 0 };
+  }
+  saveBackupSnapshot('pre-import');
+  const byName = new Map(state.subjects.map((s) => [String(s.name || '').trim(), s]));
+  const keyOf = (sid, title, start, minutes) =>
+    [sid || '', String(title || '').trim(), Number(start) || 0, Number(minutes) || 0].join('|');
+  const seen = new Set(state.sessions.map((s) => keyOf(s.subjectId, s.title, s.start, s.minutes)));
+  let added = 0;
+  let duplicates = 0;
+  let createdSubjects = 0;
+  records.forEach((r) => {
+    let subj = null;
+    const name = String(r.subjectName || '').trim();
+    if (name) {
+      subj = byName.get(name) || null;
+      if (!subj && autoCreateSubjects) {
+        subj = {
+          id: uid(),
+          name: name.slice(0, 20) || '未命名科目',
+          emoji: '📘',
+          color: COLORS[state.subjects.length % COLORS.length],
+          goalMinWeek: 0,
+          archived: false,
+          createdAt: Date.now(),
+        };
+        state.subjects.push(subj);
+        byName.set(subj.name, subj);
+        createdSubjects += 1;
+      }
+    }
+    const minutes = Math.max(0, Math.round(Number(r.minutes) || 0));
+    const end = Number(r.end) || Date.now();
+    const start = Number(r.start) || end - minutes * 60000;
+    const key = keyOf(subj ? subj.id : null, r.title, start, minutes);
+    if (dedupe && seen.has(key)) { duplicates += 1; return; }
+    state.sessions.push({
+      id: uid(),
+      subjectId: subj ? subj.id : null,
+      start,
+      end,
+      minutes,
+      title: String(r.title || '').trim().slice(0, 40),
+      note: String(r.note || '').slice(0, 500),
+      demo: false,
+      tags: normTags(r.tags || []),
+    });
+    seen.add(key);
+    added += 1;
+  });
+  if (added || createdSubjects) {
+    commit();
+    checkAutoBackup();
+  }
+  return { added, duplicates, createdSubjects };
+}
+
 /* ---------- 自动备份与快照（v1.4 保留最近 7 份） ---------- */
 function readLegacyBackup() {
   try {

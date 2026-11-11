@@ -407,7 +407,9 @@ export function renderLog(ctx) {
       if (!total) { toast('没有可导出的记录'); return; }
       const res = querySessions(params(0, total));
       if (!res.items.length) { toast('没有可导出的记录'); return; }
-      const csv = sessionsToCSV(res.items);
+      const nameById = new Map(getState().subjects.map((s) => [s.id, s.name]));
+      const rows = res.items.map((s) => ({ ...s, subjectName: nameById.get(s.subjectId) || '' }));
+      const csv = sessionsToCSV(rows);
       haptic();
       if (window.AndroidApp && window.AndroidApp.saveFile) {
         // 壳端把文件写进 Download/学习记录/ 并自行 toast，无需 JS 再提示

@@ -2,12 +2,12 @@
 
 记下每天学了什么，看见自己的积累。零依赖纯静态 PWA，原生 ES Module + CSS，无构建、无 npm 包，数据只存在浏览器本地。
 
-- 版本：v1.10
+- 版本：v1.11
 - 项目路径：`D:/DeepseekH/project/study-tracker/`
 
 ## Android 应用（APK）
 
-项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（199,665 字节，约 195 KB，versionCode 9 / versionName 1.10，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）；v1.9 起带今日进度桌面小组件（`TodayWidgetProvider`）；v1.10 起支持标签管理（重命名 / 合并 / 删除，操作前自动存保护快照），统计页新增标签分布。
+项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（203,761 字节，约 199 KB，versionCode 10 / versionName 1.11，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）；v1.9 起带今日进度桌面小组件（`TodayWidgetProvider`）；v1.10 起支持标签管理（重命名 / 合并 / 删除，操作前自动存保护快照），统计页新增标签分布；v1.11 起支持 CSV 导入（表格批量补记录，科目按名字自动对上、重复自动跳过、导入前落保护快照），并修好了导出 CSV 时「科目」列空白的问题。
 
 - 壳工程：`android/`（aapt2 + javac + d8 + apksigner 手动构建，无 gradle）
 - 构建脚本：`_tools/build-apk.py`；签名密钥 `android/build/release.keystore`（pass `xuexijilu123`）
@@ -228,7 +228,7 @@ node _tools/server.mjs "D:\path\to\study-tracker" 8123   # 根目录用绝对路
 study-tracker/
 ├─ index.html                # 唯一入口（按顺序引入 5 个样式表）
 ├─ manifest.webmanifest      # PWA 清单
-├─ sw.js                     # Service Worker（离线缓存，CACHE = study-tracker-v15）
+├─ sw.js                     # Service Worker（离线缓存，CACHE = study-tracker-v16）
 ├─ icon.svg                  # 图标源文件
 ├─ icon-180.png              # iOS 主屏图标
 ├─ icon-192.png              # PWA 图标
@@ -309,9 +309,10 @@ study-tracker/
 | `test9.mjs` | 12 | v1.8 新增：每日提醒（manifest 权限与 receiver、调度器 / 接收器 / 桥静态就绪、mock 壳保存流程） |
 | `test10.mjs` | 10 | v1.9 新增：今日进度小组件（三个 res、Provider、app.js 推送钩子） |
 | `test11.mjs` | 14 | v1.10 新增：标签管理（store 改名 / 合并 / 删除 + 保护快照）、我的页入口与弹层、统计页标签分布 |
-| **合计** | **175** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
+| `test12.mjs` | 16 | v1.11 新增：CSV 导入（解析 / 表头顺序 / 跳过原因 / 预览 / 去重 / 自动建科目 / pre-import 快照）+ 导出科目列修复 |
+| **合计** | **191** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
 
-一条命令跑完全部 11 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
+一条命令跑完全部 12 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
 
 ```bash
 node _tools/run-all.mjs
@@ -367,6 +368,22 @@ Android 侧另有两层校验：
 ---
 
 ## 更新日志
+
+### v1.11
+
+**新增**
+
+- **CSV 导入**：「我的 → 数据 → 导入 CSV」选择表格文件，解析后先给预览：可导入多少条、合计时长、涉及几个科目、跳过多少行及原因（标题为空 / 日期为空 / 日期看不懂）。科目按名字自动对上，不存在的自动新建；重复记录（科目 + 标题 + 开始时间 + 时长都相同）自动跳过，不会重复累加
+- **导入前保护快照**：导入前自动落一份「导入前保护」快照（复用 v1.7 的 `pre-import`），误导入可在「我的 → 数据 → 备份快照」里恢复
+- `_tools/test12.mjs`：16 项 v1.11 用例（`parseCSV` 引号 / 逗号 / BOM / CRLF / 字段内换行，`csvToRecords` 表头顺序可变与三种跳过原因，导出→导入往返，我的页入口、选文件、预览弹层、导入生效与自动建科目、重复导入全跳过、`pre-import` 快照），套件合计 175 → 191 项；`run-all.mjs` 扩到 12 个套件
+
+**修复**
+
+- CSV 导出的「科目」列一直是空白的（v1.7 遗留）：`exportCsv()` 传的是原始记录，只有 `subjectId` 没有科目名；现在导出前按 `subjectId` 补上科目名，导出→导入可完整往返
+
+**改变**
+
+- 版本号 v1.11、`versionCode 10`、离线缓存 `study-tracker-v16`
 
 ### v1.10
 
