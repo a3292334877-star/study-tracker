@@ -587,6 +587,127 @@ export function drawYearPoster(canvas, d) {
   return canvas;
 }
 
+/* 成就卡（v1.15）：把已点亮的徽章排成一张可保存的分享卡 */
+export function drawAchievementPoster(canvas, s) {
+  const F = '"PingFang SC","Microsoft YaHei",sans-serif';
+  const W = 750;
+  const scale = 2;
+  const CARD_X = 40;
+  const CARD_W = W - 80;
+  const IN_X = CARD_X + 40;
+  const IN_W = CARD_W - 80;
+  const CARD_Y = 210;
+  const CELL_H = 138;
+  const GAP = 15;
+
+  const got = (s.items || []).filter((x) => x.unlocked).slice(0, 12);
+  const rows = Math.ceil(got.length / 3);
+  const sections = [];
+  sections.push({ kind: 'hero', h: 170 });
+  if (got.length) sections.push({ kind: 'grid', h: rows * CELL_H + (rows - 1) * GAP + 18 });
+  else sections.push({ kind: 'none', h: 190 });
+
+  const contentH = sections.reduce((sum, x) => sum + x.h, 0);
+  const CARD_H = 34 + contentH + 30;
+  const H = CARD_Y + CARD_H + 120;
+
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  ctx.save();
+  ctx.scale(scale, scale);
+  ctx.textBaseline = 'alphabetic';
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#4f6df5');
+  bg.addColorStop(0.55, '#7d5cff');
+  bg.addColorStop(1, '#5b4bd8');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(660, 96, 170, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(60, H - 130, 150, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = `500 26px ${F}`;
+  ctx.fillText('我 的 成 就 墙', W / 2, 78);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 40px ${F}`;
+  ctx.fillText('每一步，都算数', W / 2, 140);
+
+  roundRect(ctx, CARD_X, CARD_Y, CARD_W, CARD_H, 32);
+  ctx.fillStyle = 'rgba(255,255,255,0.96)';
+  ctx.fill();
+
+  let y = CARD_Y + 34;
+
+  sections.forEach((sec) => {
+    if (sec.kind === 'hero') {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9aa1b2';
+      ctx.font = `500 26px ${F}`;
+      ctx.fillText('已 点 亮 徽 章', W / 2, y + 36);
+      const num = String(s.unlocked);
+      ctx.font = `800 82px ${F}`;
+      const nw = ctx.measureText(num).width;
+      const tail = ' / ' + s.total + ' 枚';
+      ctx.font = `500 32px ${F}`;
+      const tw = ctx.measureText(tail).width;
+      const left = W / 2 - (nw + tw) / 2;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a1d2e';
+      ctx.font = `800 82px ${F}`;
+      ctx.fillText(num, left, y + 128);
+      ctx.fillStyle = '#6b7280';
+      ctx.font = `500 32px ${F}`;
+      ctx.fillText(tail, left + nw, y + 128);
+    } else if (sec.kind === 'grid') {
+      const cellW = (IN_W - GAP * 2) / 3;
+      got.forEach((item, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        const bx = IN_X + col * (cellW + GAP);
+        const by = y + row * (CELL_H + GAP);
+        ctx.fillStyle = '#f4f6fb';
+        roundRect(ctx, bx, by, cellW, CELL_H, 22);
+        ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.font = `42px ${F}`;
+        ctx.fillText(item.icon, bx + cellW / 2, by + 52);
+        ctx.fillStyle = '#1a1d2e';
+        ctx.font = `600 23px ${F}`;
+        ctx.fillText(item.title, bx + cellW / 2, by + 92);
+        ctx.fillStyle = '#9aa1b2';
+        ctx.font = `400 19px ${F}`;
+        const desc = item.desc.length > 10 ? item.desc.slice(0, 9) + '…' : item.desc;
+        ctx.fillText(desc, bx + cellW / 2, by + 120);
+      });
+    } else if (sec.kind === 'none') {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9aa1b2';
+      ctx.font = `56px ${F}`;
+      ctx.fillText('🌱', W / 2, y + 82);
+      ctx.fillStyle = '#6b7280';
+      ctx.font = `500 28px ${F}`;
+      ctx.fillText('还没有点亮徽章，从第一条记录开始吧', W / 2, y + 140);
+    }
+    y += sec.h;
+  });
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = `500 24px ${F}`;
+  ctx.fillText('记录 · 坚持 · 成长 —— 来自「学习记录」', W / 2, H - 52);
+
+  ctx.restore();
+  return canvas;
+}
+
 function drawBar(ctx, x, y, w, h, ratio, color) {
   ctx.fillStyle = '#eef0f7';
   roundRect(ctx, x, y, w, h, h / 2);

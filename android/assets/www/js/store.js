@@ -670,6 +670,64 @@ export function yearSummary(year) {
   };
 }
 
+/* ---------- 成就徽章（v1.15） ----------
+   把「已经坚持了多久、学了多少、用过多少科目/标签」折算成一组成就，
+   数据只来自本地记录，不需要联网，也不额外存状态：每次渲染实时算，
+   解锁过的徽章不会因为后来删记录而重新上锁（判据是累计量，删掉会退，
+   这是刻意的简单口径：勋章代表当前数据，不是永久奖杯）。 */
+export function achievementStats() {
+  const sessions = state.sessions;
+  const totalMin = sessions.reduce((sum, s) => sum + (s.minutes || 0), 0);
+  const count = sessions.length;
+  const dayMap = new Map();
+  const subSet = new Set();
+  const tagSet = new Set();
+  let morning = false;
+  let night = false;
+  let pomoCount = 0;
+  sessions.forEach((s) => {
+    const d = new Date(s.end);
+    const key = dateKey(d);
+    dayMap.set(key, (dayMap.get(key) || 0) + (s.minutes || 0));
+    if (s.subjectId) subSet.add(s.subjectId);
+    (Array.isArray(s.tags) ? s.tags : []).forEach((t) => tagSet.add(t));
+    const h = new Date(s.start).getHours();
+    if (h < 6) morning = true;
+    if (h >= 23 || h < 5) night = true;
+    if ((s.minutes || 0) === 25) pomoCount += 1;
+  });
+  const activeDays = dayMap.size;
+  const bestDayMin = dayMap.size ? Math.max(...dayMap.values()) : 0;
+  const longest = longestStreak();
+  const subjectsUsed = subSet.size;
+  const tagsUsed = tagSet.size;
+
+  const defs = [
+    { id: 'first', group: '入门', icon: '🌱', title: '开张', desc: '记下第一条学习记录', target: 1, value: count, unit: '条' },
+    { id: 'hours10', group: '入门', icon: '⏱️', title: '十小时', desc: '累计学习满 10 小时', target: 600, value: totalMin, unit: '分钟' },
+    { id: 'records50', group: '入门', icon: '📚', title: '记录 50 条', desc: '留下 50 条学习记录', target: 50, value: count, unit: '条' },
+    { id: 'hours100', group: '入门', icon: '🏔️', title: '百小时', desc: '累计学习满 100 小时', target: 6000, value: totalMin, unit: '分钟' },
+    { id: 'streak3', group: '坚持', icon: '🔥', title: '三日不辍', desc: '连续 3 天有学习记录', target: 3, value: longest, unit: '天' },
+    { id: 'streak7', group: '坚持', icon: '🗓️', title: '一周不断', desc: '连续 7 天有学习记录', target: 7, value: longest, unit: '天' },
+    { id: 'streak30', group: '坚持', icon: '🏅', title: '月度坚持', desc: '连续 30 天有学习记录', target: 30, value: longest, unit: '天' },
+    { id: 'days60', group: '坚持', icon: '🌈', title: '学习 60 天', desc: '累计 60 天有学习记录', target: 60, value: activeDays, unit: '天' },
+    { id: 'subjects3', group: '多元', icon: '🎯', title: '三线并进', desc: '在 3 个不同科目上留下记录', target: 3, value: subjectsUsed, unit: '个' },
+    { id: 'tags5', group: '多元', icon: '🏷️', title: '标签玩家', desc: '用过 5 个不同的标签', target: 5, value: tagsUsed, unit: '个' },
+    { id: 'morning', group: '多元', icon: '🌅', title: '早起鸟', desc: '在早上 6 点前开始学习', target: 1, value: morning ? 1 : 0, unit: '' },
+    { id: 'night', group: '多元', icon: '🌙', title: '深夜书房', desc: '在晚上 11 点后还在学习', target: 1, value: night ? 1 : 0, unit: '' },
+    { id: 'bestday4h', group: '多元', icon: '⚡', title: '单日爆发', desc: '某一天学习满 4 小时', target: 240, value: bestDayMin, unit: '分钟' },
+    { id: 'pomodoro10', group: '专注', icon: '🍅', title: '番茄农夫', desc: '完成 10 次 25 分钟专注', target: 10, value: pomoCount, unit: '次' },
+  ];
+
+  const items = defs.map((d) => {
+    const value = Math.max(0, Math.round(Number(d.value) || 0));
+    const pct = d.target > 0 ? Math.min(100, Math.round((value / d.target) * 100)) : 0;
+    return { ...d, value, pct, unlocked: value >= d.target };
+  });
+  const unlocked = items.filter((x) => x.unlocked).length;
+  return { items, unlocked, total: items.length, percent: Math.round((unlocked / items.length) * 100) };
+}
+
 /* ---------- 记一笔模板（v1.4） ---------- */
 export function getTemplates() {
   return [...state.templates].sort(

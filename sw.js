@@ -1,7 +1,7 @@
 /* 离线缓存：页面走网络优先，静态资源走缓存优先 + 后台更新
    注意：ASSETS 必须覆盖 js/ 下全部模块与 css/ 全部分片，
    改完请跑 node _tools/test6.mjs —— 它会扫描静态 import 与本清单对比。 */
-const CACHE = 'study-tracker-v19';
+const CACHE = 'study-tracker-v20';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   './css/parts/stats.css',
   './css/parts/sheets.css',
   './css/parts/me.css',
+  './css/parts/achievements.css',
   './js/app.js',
   './js/util.js',
   './js/store.js',
@@ -30,6 +31,7 @@ const ASSETS = [
   './js/views/stats.js',
   './js/views/me.js',
   './js/views/review.js',
+  './js/views/achievements.js',
 ];
 
 self.addEventListener('install', (e) => {
