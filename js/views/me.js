@@ -4,6 +4,7 @@ import {
   listBackups, saveBackupSnapshot, removeBackup, restoreBackup,
   clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
   tagStats, renameTag, removeTag, importSessions,
+  auditData, dedupeSessions, reassignOrphanSessions, fixAbnormalMinutes,
 } from '../store.js';
 import {
   applyTheme, openSheet, closeSheet, toast, fmtMinShort, dateKey,
@@ -25,6 +26,7 @@ export function renderMe(ctx) {
   const totalMin = state.sessions.reduce((sum, s) => sum + s.minutes, 0);
   const totalDays = new Set(state.sessions.map((s) => dateKey(new Date(s.end)))).size;
   const subjectCount = state.subjects.length;
+  const auditInfo = auditData();
 
   const html = `
     <section class="card fade-in" style="display:flex;align-items:center;gap:14px">
@@ -160,6 +162,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">导入 CSV</div><div class="row-sub">从表格批量补记录，科目按名字自动对上</div></div>
         <div class="row-chev">›</div>
       </button>
+      <button class="row" type="button" data-act="audit">
+        <div class="row-ic">🩺</div>
+        <div class="row-main"><div class="row-title">数据体检</div><div class="row-sub" id="audit-sub">${auditSummary(auditInfo)}</div></div>
+        ${auditInfo.total ? `<div class="row-val" style="color:var(--warn)">${auditInfo.total} 处</div>` : '<div class="row-chev">›</div>'}
+      </button>
       ${hasDemoData() ? `<button class="row" type="button" data-act="clear-demo">
         <div class="row-ic">🧪</div>
         <div class="row-main"><div class="row-title">移除示例数据</div><div class="row-sub">只删第一次打开时的示例内容，自己的都保留</div></div>
@@ -179,7 +186,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.11 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.12 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -236,6 +243,7 @@ export function renderMe(ctx) {
     }
     root.querySelector('[data-act="import"]').addEventListener('click', () => doImport(ctx));
     root.querySelector('[data-act="import-csv"]').addEventListener('click', () => doImportCSV(ctx));
+    root.querySelector('[data-act="audit"]').addEventListener('click', () => openAuditSheet(ctx));
     const demoRow = root.querySelector('[data-act="clear-demo"]');
     if (demoRow) demoRow.addEventListener('click', async () => {
       const ok = await confirmSheet({
@@ -644,6 +652,71 @@ function openCsvImportSheet(parsed, ctx) {
         console.error(err);
         toast('导入失败');
       }
+    });
+  });
+}
+
+/* ---------- 数据体检（v1.12） ---------- */
+function auditSummary(a) {
+  if (!a.total) return '一切正常，没有发现可疑记录';
+  return '发现 ' + a.total + ' 处可疑数据，点此查看';
+}
+
+function openAuditSheet(ctx) {
+  const a = auditData();
+  const rows = [];
+  if (a.duplicateCount) {
+    rows.push('<button class="row" type="button" data-fix="dup">'
+      + '<div class="row-ic">🧬</div>'
+      + '<div class="row-main"><div class="row-title">重复记录</div><div class="row-sub">'
+      + a.duplicates.length + ' 组，可清理 ' + a.duplicateCount + ' 条（保留最早一条）</div></div>'
+      + '<div class="row-chev">›</div></button>');
+  }
+  if (a.orphan.length) {
+    rows.push('<button class="row" type="button" data-fix="orphan">'
+      + '<div class="row-ic">🪢</div>'
+      + '<div class="row-main"><div class="row-title">孤儿记录</div><div class="row-sub">'
+      + a.orphan.length + ' 条记录的科目已不存在</div></div>'
+      + '<div class="row-chev">›</div></button>');
+  }
+  if (a.abnormal.length) {
+    rows.push('<button class="row" type="button" data-fix="abnormal">'
+      + '<div class="row-ic">⏳</div>'
+      + '<div class="row-main"><div class="row-title">异常时长</div><div class="row-sub">'
+      + a.abnormal.length + ' 条记录的时长不在 0–24 小时之间</div></div>'
+      + '<div class="row-chev">›</div></button>');
+  }
+  const desc = a.total
+    ? '发现 <b>' + a.total + '</b> 处可疑数据。修复前会自动存一份「体检修复前保护」快照，弄错了可以在「备份快照」里找回。'
+    : '全部正常：没有重复记录、没有孤儿记录，时长也都在合理范围内。';
+  openSheet('<h2 class="sheet-title">数据体检</h2>'
+    + '<p class="sheet-desc">' + desc + '</p>'
+    + (rows.length ? '<div class="card flat">' + rows.join('') + '</div>' : '')
+    + '<div class="sheet-actions"><button class="btn" type="button" data-act="close">关闭</button></div>', (sheet) => {
+    sheet.querySelector('[data-act="close"]').addEventListener('click', closeSheet);
+    const dup = sheet.querySelector('[data-fix="dup"]');
+    if (dup) dup.addEventListener('click', async () => {
+      const ok = await confirmSheet({ title: '合并重复记录？', desc: '将保留每组时间最早的一条，删除另外 ' + a.duplicateCount + ' 条；被删记录的备注与标签会合并到保留的那条上。', okText: '合并', danger: true });
+      if (!ok) return;
+      const res = dedupeSessions();
+      haptic(); toast('已合并 ' + res.groups + ' 组，清理 ' + res.removed + ' 条');
+      ctx.refresh();
+    });
+    const orp = sheet.querySelector('[data-fix="orphan"]');
+    if (orp) orp.addEventListener('click', async () => {
+      const ok = await confirmSheet({ title: '归入「未分类」？', desc: a.orphan.length + ' 条记录的科目已经不存在，会新建「未分类」科目并把它们归过去。', okText: '归入', danger: false });
+      if (!ok) return;
+      const res = reassignOrphanSessions();
+      haptic(); toast('已归入「未分类」：' + res.moved + ' 条');
+      ctx.refresh();
+    });
+    const abn = sheet.querySelector('[data-fix="abnormal"]');
+    if (abn) abn.addEventListener('click', async () => {
+      const ok = await confirmSheet({ title: '修正异常时长？', desc: a.abnormal.length + ' 条记录的时长不在 0–24 小时之间：负值按 0 分钟、超过 24 小时的按 24 小时计算，开始时间同步调整。', okText: '修正', danger: false });
+      if (!ok) return;
+      const n = fixAbnormalMinutes();
+      haptic(); toast('已修正 ' + n + ' 条时长');
+      ctx.refresh();
     });
   });
 }

@@ -1,9 +1,9 @@
-/* test12：v1.11 CSV 导入（解析 / 预览 / 去重 / 自动建科目）+ 导出科目列修复
+/* test12：v1.12 CSV 导入（解析 / 预览 / 去重 / 自动建科目）+ 导出科目列修复
    1) csv.js：parseCSV / csvToRecords
    2) store.js：importSessions（pre-import 快照、去重、自动建科目）
    3) me.js：数据卡「导入 CSV」入口 + 预览弹层
    4) log.js：导出时补科目名（v1.7 遗留：科目列空白）
-   5) 版本：sw v16 / manifest 10(1.11) / me 页脚 v1.11
+   5) 版本：sw v17 / manifest 11(1.11) / me 页脚 v1.12
    用法：node _tools/test12.mjs <ROOT> <OUT> <EDGE>   （可选 ST_PORT / ST_DBG，默认 8132 / 9372） */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -37,11 +37,11 @@ check('store.js importSessions', storeSrc.includes('export function importSessio
   && /export function importSessions[\s\S]{0,400}pre-import/.test(storeSrc), true);
 check('me.js 导入 CSV 入口与预览', meSrc.includes('data-act="import-csv"')
   && meSrc.includes('function doImportCSV') && meSrc.includes('function openCsvImportSheet')
-  && meSrc.includes('学习记录 v1.11'), true);
+  && meSrc.includes('学习记录 v1.12'), true);
 check('log.js 导出补科目名', /subjectName:\s*nameById\.get/.test(logSrc)
   && logSrc.includes('getState().subjects'), true);
-check('版本：sw v16 / manifest 10-1.11', swSrc.includes("const CACHE = 'study-tracker-v16';")
-  && manifestXml.includes('android:versionCode="10"') && manifestXml.includes('android:versionName="1.11"'), true);
+check('版本：sw v17 / manifest 11-1.12', swSrc.includes("const CACHE = 'study-tracker-v17';")
+  && manifestXml.includes('android:versionCode="11"') && manifestXml.includes('android:versionName="1.12"'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

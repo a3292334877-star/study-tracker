@@ -2,7 +2,7 @@
    1) store.js：tagStats / renameTag / removeTag
    2) me.js：工具卡「标签管理」入口 + 弹层（重命名 / 删除）
    3) stats.js：标签分布卡片
-   4) 版本：sw v16 / manifest 10(1.11) / me 页脚 v1.11
+   4) 版本：sw v17 / manifest 11(1.11) / me 页脚 v1.12
    5) 浏览器：store 单元（改名 / 合并 / 删除）→ 我的页入口与弹层 → 删除流程 → 统计页标签分布卡
    用法：node _tools/test11.mjs <ROOT> <OUT> <EDGE>   （可选 ST_PORT / ST_DBG，默认 8131 / 9368） */
 import { spawn } from 'node:child_process';
@@ -36,10 +36,10 @@ check('store.js 标签函数', storeSrc.includes('export function tagStats')
 check('me.js 标签管理入口与弹层', meSrc.includes('data-act="tag-manage"')
   && meSrc.includes('function openTagSheet') && meSrc.includes('function openTagActions')
   && meSrc.includes('renameTag(tag, to)') && meSrc.includes('removeTag(tag)')
-  && meSrc.includes('学习记录 v1.11'), true);
+  && meSrc.includes('学习记录 v1.12'), true);
 check('stats.js 标签分布卡', statsSrc.includes('标签分布') && statsSrc.includes('tagRows') && statsSrc.includes('tagMax'), true);
-check('版本：sw v16 / manifest 10-1.11', swSrc.includes("const CACHE = 'study-tracker-v16';")
-  && manifestXml.includes('android:versionCode="10"') && manifestXml.includes('android:versionName="1.11"'), true);
+check('版本：sw v17 / manifest 11-1.12', swSrc.includes("const CACHE = 'study-tracker-v17';")
+  && manifestXml.includes('android:versionCode="11"') && manifestXml.includes('android:versionName="1.12"'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

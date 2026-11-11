@@ -912,6 +912,114 @@ export function importSessions(records, { autoCreateSubjects = true, dedupe = tr
   return { added, duplicates, createdSubjects };
 }
 
+/* ---------- 数据体检（v1.12） ----------
+   CSV 导入、合并备份之后，记录里可能出现：同一条被收了两遍、科目已删却还挂着的
+   孤儿记录、以及明显不合理的时长。auditData() 只读；各修复函数动手前都先存一份
+   「体检修复前保护」，弄错了还能从备份里找回。 */
+export function auditData() {
+  const groups = new Map();
+  state.sessions.forEach((s) => {
+    const key = [s.subjectId || '', String(s.title || ''), Number(s.start) || 0, Number(s.minutes) || 0].join('|');
+    const list = groups.get(key);
+    if (list) list.push(s); else groups.set(key, [s]);
+  });
+  const duplicates = [];
+  groups.forEach((list, key) => {
+    if (list.length < 2) return;
+    const sorted = [...list].sort((a, b) => (Number(a.end) || 0) - (Number(b.end) || 0));
+    duplicates.push({
+      key,
+      keepId: sorted[0].id,
+      ids: sorted.map((s) => s.id),
+      count: sorted.length,
+      removable: sorted.length - 1,
+      title: String(sorted[0].title || '').trim() || '（无标题）',
+      minutes: Number(sorted[0].minutes) || 0,
+    });
+  });
+  const subjectIds = new Set(state.subjects.map((s) => s.id));
+  const orphan = state.sessions.filter((s) => !s.subjectId || !subjectIds.has(s.subjectId));
+  const abnormal = state.sessions.filter((s) => {
+    const m = Number(s.minutes);
+    return !Number.isFinite(m) || m < 0 || m > 1440;
+  });
+  const duplicateCount = duplicates.reduce((n, d) => n + d.removable, 0);
+  return {
+    duplicates,
+    duplicateCount,
+    orphan,
+    abnormal,
+    total: duplicateCount + orphan.length + abnormal.length,
+  };
+}
+
+/* 合并重复：每组保留时间最早的一条，被删记录的备注 / 标签合并过去 */
+export function dedupeSessions() {
+  const audit = auditData();
+  if (!audit.duplicates.length) return { groups: 0, removed: 0 };
+  saveBackupSnapshot('pre-audit');
+  const drop = new Set();
+  let removed = 0;
+  audit.duplicates.forEach((g) => {
+    const keep = state.sessions.find((s) => s.id === g.keepId);
+    state.sessions.filter((s) => g.ids.includes(s.id) && s.id !== g.keepId).forEach((s) => {
+      if (keep) {
+        if (!String(keep.note || '').trim() && String(s.note || '').trim()) keep.note = s.note;
+        const merged = normTags([...(keep.tags || []), ...(s.tags || [])]);
+        if (merged.length > (keep.tags || []).length) keep.tags = merged;
+      }
+      drop.add(s.id);
+      removed += 1;
+    });
+  });
+  state.sessions = state.sessions.filter((s) => !drop.has(s.id));
+  commit();
+  return { groups: audit.duplicates.length, removed };
+}
+
+/* 孤儿记录归入「未分类」（没有就新建一个） */
+export function reassignOrphanSessions(name = '未分类') {
+  const audit = auditData();
+  if (!audit.orphan.length) return { moved: 0, subject: null };
+  saveBackupSnapshot('pre-audit');
+  let subject = state.subjects.find((s) => s.name === name);
+  if (!subject) {
+    subject = {
+      id: uid(),
+      name,
+      emoji: '📦',
+      color: COLORS[state.subjects.length % COLORS.length],
+      goalMinWeek: 0,
+      archived: false,
+      createdAt: Date.now(),
+    };
+    state.subjects.push(subject);
+  }
+  const ids = new Set(audit.orphan.map((s) => s.id));
+  state.sessions.forEach((s) => { if (ids.has(s.id)) s.subjectId = subject.id; });
+  commit();
+  return { moved: ids.size, subject };
+}
+
+/* 异常时长：负值 / 非数字按 0 分钟，超过 24 小时按 1440 分钟 */
+export function fixAbnormalMinutes() {
+  const audit = auditData();
+  if (!audit.abnormal.length) return 0;
+  saveBackupSnapshot('pre-audit');
+  let fixed = 0;
+  audit.abnormal.forEach((s) => {
+    const m = Number(s.minutes);
+    const next = !Number.isFinite(m) || m < 0 ? 0 : 1440;
+    const end = Number(s.end) || Date.now();
+    s.minutes = next;
+    s.end = end;
+    s.start = end - next * 60000;
+    fixed += 1;
+  });
+  commit();
+  return fixed;
+}
+
 /* ---------- 自动备份与快照（v1.4 保留最近 7 份） ---------- */
 function readLegacyBackup() {
   try {
@@ -964,6 +1072,7 @@ function backupLabel(reason) {
   if (reason === 'pre-clear') return '清空前保护';
   if (reason === 'pre-batch') return '删除前保护';
   if (reason === 'pre-tag') return '标签操作前保护';
+  if (reason === 'pre-audit') return '体检修复前保护';
   return '手动备份';
 }
 export function saveBackupSnapshot(reason = 'manual', name = '') {
