@@ -1,10 +1,102 @@
-/* 学习计划：把任务排到一周的每一天（v1.17） */
+/* 学习计划：把任务排到一周的每一天（v1.17）；重复任务与复制上周（v1.18） */
 import {
-  planWeek, addTodo, toggleTodo, removeTodo, dateKey, addDays, parseKey,
+  planWeek, todosOfDay, addTodo, toggleTodo, removeTodo, removeTodoSeries, copyWeekTodos,
+  normRepeat, repeatLabel, dateKey, addDays, parseKey,
 } from '../store.js';
 import {
-  esc, fmtMinShort, weekdayCN, monthDayCN, promptSheet, toast, haptic,
+  esc, fmtMinShort, weekdayCN, monthDayCN, openSheet, closeSheet, toast, haptic,
 } from '../util.js';
+
+const REPEAT_OPTIONS = [
+  { id: 'none', label: '不重复', hint: '只在选中的一天' },
+  { id: 'daily', label: '每天', hint: '从这天起每天出现' },
+  { id: 'weekdays', label: '工作日', hint: '周一到周五出现' },
+  { id: 'weekly', label: '每周', hint: '每周的同一天出现' },
+];
+
+/* 添加任务弹层：任务内容 + 重复频率，返回 { text, repeat } 或 null */
+function openAddTask(key) {
+  const d = parseKey(key);
+  return new Promise((resolve) => {
+    let done = false;
+    let repeat = 'none';
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      closeSheet();
+      resolve(val);
+    };
+    openSheet(
+      `<h2 class="sheet-title">添加任务</h2>
+      <p class="sheet-desc">${monthDayCN(d)} ${weekdayCN(d)} 要做什么？</p>
+      <div class="field">
+        <label for="prompt-input">任务内容</label>
+        <input class="input" id="prompt-input" maxlength="40" placeholder="例如：复习英语听力 30 分钟" />
+      </div>
+      <div class="field">
+        <label>重复</label>
+        <div class="chips" id="repeat-chips" role="group" aria-label="重复频率">
+          ${REPEAT_OPTIONS.map((o) => `<button class="chip${o.id === 'none' ? ' on' : ''}" type="button" data-repeat="${o.id}" aria-pressed="${o.id === 'none' ? 'true' : 'false'}" title="${o.hint}">${o.label}</button>`).join('')}
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn" type="button" data-act="no">取消</button>
+        <button class="btn primary" type="button" data-act="yes">添加</button>
+      </div>`,
+      (sheet) => {
+        const input = sheet.querySelector('#prompt-input');
+        sheet.querySelectorAll('[data-repeat]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            repeat = btn.dataset.repeat;
+            sheet.querySelectorAll('[data-repeat]').forEach((b) => {
+              const on = b === btn;
+              b.classList.toggle('on', on);
+              b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+          });
+        });
+        sheet.querySelector('[data-act="no"]').addEventListener('click', () => finish(null));
+        sheet.querySelector('[data-act="yes"]').addEventListener('click', () => {
+          const text = input.value.trim();
+          if (!text) { input.focus(); return; }
+          finish({ text, repeat });
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); sheet.querySelector('[data-act="yes"]').click(); }
+        });
+        setTimeout(() => input.focus(), 150);
+      },
+    );
+  });
+}
+
+/* 删除重复任务：返回 'skip' | 'all' | null */
+function openRepeatDeleteSheet(text, repeat, key) {
+  const d = parseKey(key);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      closeSheet();
+      resolve(val);
+    };
+    openSheet(
+      `<h2 class="sheet-title">重复任务</h2>
+      <p class="sheet-desc">「${esc(text)}」${esc(repeatLabel(repeat))}重复。要只删除 ${monthDayCN(d)} 这一天，还是删除整个重复任务？</p>
+      <div class="sheet-actions">
+        <button class="btn" type="button" data-act="cancel">取消</button>
+        <button class="btn" type="button" data-act="skip">跳过这一天</button>
+        <button class="btn danger-solid" type="button" data-act="all">全部删除</button>
+      </div>`,
+      (sheet) => {
+        sheet.querySelector('[data-act="cancel"]').addEventListener('click', () => finish(null));
+        sheet.querySelector('[data-act="skip"]').addEventListener('click', () => finish('skip'));
+        sheet.querySelector('[data-act="all"]').addEventListener('click', () => finish('all'));
+      },
+    );
+  });
+}
 
 export function renderPlan(ctx) {
   const todayKey = dateKey(new Date());
@@ -22,7 +114,10 @@ export function renderPlan(ctx) {
       <div class="hero-bar"><i style="width:${wk.pct}%"></i></div>
       <div class="hero-foot">
         <span>本周已学习 ${fmtMinShort(wk.minutes)}</span>
-        ${thisWeek ? '' : '<button type="button" data-act="this-week">回到本周 →</button>'}
+        <span class="hero-links">
+          ${thisWeek ? '' : '<button type="button" data-act="this-week">回到本周 →</button>'}
+          <button type="button" data-act="copy-last">复制上周计划</button>
+        </span>
       </div>
     </section>
 
@@ -44,9 +139,10 @@ export function renderPlan(ctx) {
         </div>
         ${day.todos.length ? `<div class="plan-list">
           ${day.todos.map((t) => `
-            <div class="plan-task${t.done ? ' done' : ''}" data-plan-task="${t.id}">
+            <div class="plan-task${t.done ? ' done' : ''}" data-plan-task="${t.id}" data-plan-date="${day.key}" data-repeat="${normRepeat(t.repeat)}">
               <button class="plan-check" type="button" data-act="toggle-plan" aria-label="${t.done ? '标记未完成' : '标记完成'}">${t.done ? '✓' : '○'}</button>
               <div class="plan-text">${esc(t.text)}</div>
+              ${repeatLabel(t.repeat) ? `<span class="plan-repeat">${repeatLabel(t.repeat)}</span>` : ''}
               <button class="row-chev" type="button" data-act="del-plan" aria-label="删除任务">✕</button>
             </div>`).join('')}
         </div>` : '<p class="plan-empty">没有安排任务</p>'}
@@ -64,28 +160,46 @@ export function renderPlan(ctx) {
     });
     const thisBtn = root.querySelector('[data-act="this-week"]');
     if (thisBtn) thisBtn.addEventListener('click', () => ctx.go('#/plan'));
+    const copyBtn = root.querySelector('[data-act="copy-last"]');
+    if (copyBtn) copyBtn.addEventListener('click', () => {
+      const added = copyWeekTodos(dateKey(addDays(startDate, -7)), wk.startKey);
+      toast(added ? `已复制 ${added} 项任务` : '上周没有可复制的任务');
+    });
     root.querySelectorAll('[data-add-day]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const key = btn.dataset.addDay;
-        const d = parseKey(key);
-        const text = await promptSheet({
-          title: '添加任务',
-          desc: `${monthDayCN(d)} ${weekdayCN(d)} 要做什么？`,
-          placeholder: '例如：复习英语听力 30 分钟',
-          maxlength: 40,
-        });
-        if (text) { addTodo(text, key); toast('任务已添加'); }
+        const result = await openAddTask(key);
+        if (result) {
+          addTodo(result.text, key, result.repeat);
+          toast(result.repeat === 'none' ? '任务已添加' : `任务已添加 · ${repeatLabel(result.repeat)}重复`);
+        }
       });
     });
     root.querySelectorAll('[data-act="toggle-plan"]').forEach((btn) => {
       btn.addEventListener('click', () => {
         haptic();
-        toggleTodo(btn.closest('[data-plan-task]').dataset.planTask);
+        const task = btn.closest('[data-plan-task]');
+        toggleTodo(task.dataset.planTask, task.dataset.planDate);
       });
     });
     root.querySelectorAll('[data-act="del-plan"]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        removeTodo(btn.closest('[data-plan-task]').dataset.planTask);
+      btn.addEventListener('click', async () => {
+        const task = btn.closest('[data-plan-task]');
+        const id = task.dataset.planTask;
+        const key = task.dataset.planDate;
+        if (normRepeat(task.dataset.repeat) === 'none') {
+          removeTodo(id, key);
+          return;
+        }
+        const item = todosOfDay(key).find((x) => x.id === id);
+        const action = await openRepeatDeleteSheet(item ? item.text : '', task.dataset.repeat, key);
+        if (action === 'skip') {
+          removeTodo(id, key);
+          toast('已跳过这一天');
+        } else if (action === 'all') {
+          removeTodoSeries(id);
+          toast('已删除整个重复任务');
+        }
       });
     });
   }

@@ -1,4 +1,4 @@
-/* test18：v1.17 学习计划（#/plan 周计划 + 今日任务）
+/* test18：v1.18 学习计划（#/plan 周计划 + 今日任务）
    1) 静态：store 计划函数（todosOfDay/planWeek/todoDate/isDateKey）/ plan 视图与样式 / 路由 / 首页与我的入口 / 版本资源
    2) 数据：todosOfDay 按日期过滤、planWeek 默认周一开始 7 天、合计/完成率/跨周隔离、weekStart=0、旧任务无 date 按 createdAt 回退、addTodo 指定日期
    3) 界面：首页只显示今日任务与「本周计划」入口、计划页 7 天卡片/任务状态/完成率、勾选、添加、删除、上一周/下一周切换
@@ -55,10 +55,10 @@ check('首页与我的计划入口',
   homeSrc.includes('todosOfDay')
     && homeSrc.includes('data-act="plan"')
     && meSrc.includes('data-act="plan"'), true);
-check('版本：sw v22 / manifest 16-1.17 / 页脚 v1.17 / 资源',
-  swSrc.includes("const CACHE = 'study-tracker-v22';")
-    && manifestXml.includes('android:versionCode="16"') && manifestXml.includes('android:versionName="1.17"')
-    && meSrc.includes('学习记录 v1.17')
+check('版本：sw v23 / manifest 17-1.18 / 页脚 v1.18 / 资源',
+  swSrc.includes("const CACHE = 'study-tracker-v23';")
+    && manifestXml.includes('android:versionCode="17"') && manifestXml.includes('android:versionName="1.18"')
+    && meSrc.includes('学习记录 v1.18')
     && swSrc.includes('./js/views/plan.js') && swSrc.includes('./css/parts/plan.css')
     && indexHtml.includes('css/parts/plan.css'), true);
 

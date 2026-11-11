@@ -1,6 +1,6 @@
 /* 今日视图：今天学了什么 + 今天的任务 */
 import {
-  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, removeTodo, lastNDays, todosOfDay,
+  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, removeTodo, lastNDays, todosOfDay, repeatLabel,
 } from '../store.js';
 import {
   esc, fmtMin, fmtMinShort, dateKey, weekdayCN, monthDayCN, haptic,
@@ -71,12 +71,13 @@ export function renderHome(ctx) {
       </div>
       <div class="list" id="todo-list">
         ${todos.length ? todos.map((t) => `
-          <div class="row" data-todo="${t.id}">
+          <div class="row" data-todo="${t.id}" data-date="${t.occurrence || todayKey}" data-repeat="${t.repeat || 'none'}">
             <button class="row-ic" type="button" data-act="toggle-todo" style="background:${t.done ? 'var(--primary-soft)' : 'var(--surface-2)'};color:${t.done ? 'var(--primary)' : 'var(--text-3)'}">
               ${t.done ? '✓' : '○'}
             </button>
             <div class="row-main">
               <div class="row-title" style="${t.done ? 'color:var(--text-3);text-decoration:line-through' : ''}">${esc(t.text)}</div>
+              ${repeatLabel(t.repeat) ? `<div class="row-sub">${repeatLabel(t.repeat)}重复</div>` : ''}
             </div>
             <button class="row-chev" type="button" data-act="del-todo" aria-label="删除">✕</button>
           </div>`).join('') : `
@@ -95,13 +96,15 @@ export function renderHome(ctx) {
     root.querySelectorAll('[data-act="toggle-todo"]').forEach((el) => {
       el.addEventListener('click', () => {
         haptic();
-        toggleTodo(el.closest('[data-todo]').dataset.todo);
+        const row = el.closest('[data-todo]');
+        toggleTodo(row.dataset.todo, row.dataset.date);
         ctx.refresh();
       });
     });
     root.querySelectorAll('[data-act="del-todo"]').forEach((el) => {
       el.addEventListener('click', () => {
-        removeTodo(el.closest('[data-todo]').dataset.todo);
+        const row = el.closest('[data-todo]');
+        removeTodo(row.dataset.todo, row.dataset.date);
         ctx.refresh();
       });
     });

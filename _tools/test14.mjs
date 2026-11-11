@@ -2,7 +2,7 @@
    1) timer.js：getCycle / planNextPhase / restartCycle + settings 默认值
    2) 计时页：番茄循环开关与轮次显示
    3) 自动衔接：专注→短休→专注…第 4 轮后长休→回到第 1 轮（用假 Date.now 驱动）
-   4) 版本：sw v22 / manifest 16(1.17) / me 页脚 v1.17
+   4) 版本：sw v23 / manifest 17(1.18) / me 页脚 v1.18
    用法：node _tools/test14.mjs <ROOT> <OUT> <EDGE>   （可选 ST_PORT / ST_DBG，默认 8134 / 9375） */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -39,10 +39,10 @@ check('计时页番茄循环开关',
 check('store 设置默认值',
   storeSrc.includes('pomodoroCycle: false') && storeSrc.includes('pomodoroShortMin: 5')
     && storeSrc.includes('pomodoroLongMin: 15') && storeSrc.includes('pomodoroRounds: 4'), true);
-check('版本：sw v22 / manifest 16-1.17 / 页脚 v1.17',
-  swSrc.includes("const CACHE = 'study-tracker-v22';")
-    && manifestXml.includes('android:versionCode="16"') && manifestXml.includes('android:versionName="1.17"')
-    && meSrc.includes('学习记录 v1.17'), true);
+check('版本：sw v23 / manifest 17-1.18 / 页脚 v1.18',
+  swSrc.includes("const CACHE = 'study-tracker-v23';")
+    && manifestXml.includes('android:versionCode="17"') && manifestXml.includes('android:versionName="1.18"')
+    && meSrc.includes('学习记录 v1.18'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

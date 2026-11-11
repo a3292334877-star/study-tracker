@@ -112,6 +112,9 @@ function normalize(raw) {
     todos: (Array.isArray(raw.todos) ? raw.todos : []).map((t) => ({
       ...t,
       date: todoDate(t),
+      repeat: normRepeat(t.repeat),
+      doneDates: Array.isArray(t.doneDates) ? t.doneDates.filter(isDateKey) : [],
+      skipDates: Array.isArray(t.skipDates) ? t.skipDates.filter(isDateKey) : [],
     })),
     reviews: raw.reviews && typeof raw.reviews === 'object' ? raw.reviews : {},
   };
@@ -832,7 +835,8 @@ export function removeTemplate(id) {
   commit();
 }
 
-/* ---------- 今日任务 / 学习计划（v1.17） ---------- */
+/* ---------- 今日任务 / 学习计划（v1.17） / 重复任务（v1.18） ---------- */
+const REPEAT_TYPES = ['none', 'daily', 'weekdays', 'weekly'];
 function isDateKey(v) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) && !Number.isNaN(parseKey(v).getTime());
 }
@@ -841,8 +845,44 @@ function todoDate(t) {
   const ts = Number(t && t.createdAt) || Date.now();
   return dateKey(new Date(ts));
 }
+export function normRepeat(v) {
+  return REPEAT_TYPES.includes(String(v || '')) ? String(v) : 'none';
+}
+export function repeatLabel(v) {
+  return ({ none: '', daily: '每天', weekdays: '工作日', weekly: '每周' })[normRepeat(v)];
+}
+/* 重复规则从任务起始日算起：daily 每天、weekdays 周一至周五、weekly 每周同一天 */
+function repeatMatches(t, key) {
+  const start = todoDate(t);
+  if (key < start) return false;
+  if (isDateKey(t.repeatEnd) && key > t.repeatEnd) return false;
+  const d = parseKey(key);
+  const rep = normRepeat(t.repeat);
+  if (rep === 'daily') return true;
+  if (rep === 'weekdays') return d.getDay() >= 1 && d.getDay() <= 5;
+  if (rep === 'weekly') return d.getDay() === parseKey(start).getDay();
+  return key === start;
+}
+function repeatDone(t, key) {
+  return Array.isArray(t.doneDates) && t.doneDates.includes(key);
+}
+function repeatSkipped(t, key) {
+  return Array.isArray(t.skipDates) && t.skipDates.includes(key);
+}
+/* 返回某天的任务。重复任务不复制实体，按日期投影成「当天的一份」；
+   done 也按天记录，所以在任意一天勾选不会影响其他天。 */
 export function todosOfDay(key) {
-  return state.todos.filter((t) => todoDate(t) === key);
+  const out = [];
+  state.todos.forEach((t) => {
+    const rep = normRepeat(t.repeat);
+    if (rep === 'none') {
+      if (todoDate(t) === key) out.push({ ...t, occurrence: key, done: Boolean(t.done) });
+      return;
+    }
+    if (!repeatMatches(t, key) || repeatSkipped(t, key)) return;
+    out.push({ ...t, occurrence: key, done: repeatDone(t, key) });
+  });
+  return out;
 }
 /* 一周计划：按当前「每周起始日」把任务和学习时长摊到 7 天 */
 export function planWeek(anchorKey) {
@@ -852,7 +892,7 @@ export function planWeek(anchorKey) {
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(ws, i);
     const key = dateKey(d);
-    const todos = state.todos.filter((t) => todoDate(t) === key);
+    const todos = todosOfDay(key);
     const done = todos.filter((t) => t.done).length;
     return {
       key,
@@ -880,28 +920,88 @@ export function planWeek(anchorKey) {
     minutes: days.reduce((s, d) => s + d.minutes, 0),
   };
 }
-export function addTodo(text, date) {
+export function addTodo(text, date, repeat = 'none') {
+  const rep = normRepeat(repeat);
   const todo = {
     id: uid(),
     text: String(text || '').trim(),
     done: false,
     createdAt: Date.now(),
     date: isDateKey(date) ? date : dateKey(new Date()),
+    repeat: rep,
   };
+  if (rep !== 'none') {
+    todo.doneDates = [];
+    todo.skipDates = [];
+  }
   if (!todo.text) return null;
   state.todos.push(todo);
   commit();
   return todo;
 }
-export function toggleTodo(id) {
+/* 普通任务切换 done；重复任务切换指定日期的 doneDates（不传日期默认起始日） */
+export function toggleTodo(id, date) {
   const t = state.todos.find((x) => x.id === id);
   if (!t) return;
-  t.done = !t.done;
+  if (normRepeat(t.repeat) === 'none') {
+    t.done = !t.done;
+    commit();
+    return;
+  }
+  const key = isDateKey(date) ? date : todoDate(t);
+  if (!Array.isArray(t.doneDates)) t.doneDates = [];
+  const idx = t.doneDates.indexOf(key);
+  if (idx >= 0) t.doneDates.splice(idx, 1);
+  else t.doneDates.push(key);
   commit();
 }
-export function removeTodo(id) {
-  state.todos = state.todos.filter((t) => t.id !== id);
+/* 删除普通任务；重复任务传日期时只跳过这一天，系列本身保留（全部删除见 removeTodoSeries） */
+export function removeTodo(id, date) {
+  const t = state.todos.find((x) => x.id === id);
+  if (!t) return;
+  if (normRepeat(t.repeat) === 'none') {
+    state.todos = state.todos.filter((x) => x.id !== id);
+    commit();
+    return;
+  }
+  const key = isDateKey(date) ? date : todoDate(t);
+  if (!Array.isArray(t.skipDates)) t.skipDates = [];
+  if (!t.skipDates.includes(key)) t.skipDates.push(key);
   commit();
+}
+export function removeTodoSeries(id) {
+  state.todos = state.todos.filter((x) => x.id !== id);
+  commit();
+}
+/* 把上一周（fromAnchor 所在周）的普通任务按星期几复制到目标周；
+   重复任务本来就会自动出现，不再复制；同一天同名的任务不重复添加。 */
+export function copyWeekTodos(fromAnchor, toAnchor) {
+  const weekStart = state.settings.weekStart === 0 ? 0 : 1;
+  const from = startOfWeek(isDateKey(fromAnchor) ? parseKey(fromAnchor) : new Date(), weekStart);
+  const to = startOfWeek(isDateKey(toAnchor) ? parseKey(toAnchor) : new Date(), weekStart);
+  if (dateKey(from) === dateKey(to)) return 0;
+  const existing = new Set(
+    state.todos
+      .filter((t) => normRepeat(t.repeat) === 'none')
+      .map((t) => todoDate(t) + '|' + String(t.text || '').trim()),
+  );
+  let added = 0;
+  for (let i = 0; i < 7; i++) {
+    const srcKey = dateKey(addDays(from, i));
+    const dstKey = dateKey(addDays(to, i));
+    state.todos
+      .filter((t) => normRepeat(t.repeat) === 'none' && todoDate(t) === srcKey)
+      .forEach((t) => {
+        const text = String(t.text || '').trim();
+        const sig = dstKey + '|' + text;
+        if (!text || existing.has(sig)) return;
+        state.todos.push({ id: uid(), text, done: false, createdAt: Date.now(), date: dstKey, repeat: 'none', copiedFrom: t.id });
+        existing.add(sig);
+        added += 1;
+      });
+  }
+  if (added) commit();
+  return added;
 }
 
 /* ---------- 设置 / 复盘 ---------- */

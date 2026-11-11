@@ -42,10 +42,10 @@ check('日历视图与样式',
 check('日历路由与统计页入口',
   appSrc.includes("import { renderCalendar }") && appSrc.includes('calendar: renderCalendar')
     && statsSrc.includes('id="calendar-card"') && statsSrc.includes('data-act="calendar"'), true);
-check('版本：sw v22 / manifest 16-1.17 / 页脚 v1.17 / 资源',
-  swSrc.includes("const CACHE = 'study-tracker-v22';")
-    && manifestXml.includes('android:versionCode="16"') && manifestXml.includes('android:versionName="1.17"')
-    && meSrc.includes('学习记录 v1.17')
+check('版本：sw v23 / manifest 17-1.18 / 页脚 v1.18 / 资源',
+  swSrc.includes("const CACHE = 'study-tracker-v23';")
+    && manifestXml.includes('android:versionCode="17"') && manifestXml.includes('android:versionName="1.18"')
+    && meSrc.includes('学习记录 v1.18')
     && swSrc.includes('./js/views/calendar.js') && swSrc.includes('./css/parts/calendar.css')
     && indexHtml.includes('css/parts/calendar.css'), true);
 
