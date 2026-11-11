@@ -2,12 +2,12 @@
 
 记下每天学了什么，看见自己的积累。零依赖纯静态 PWA，原生 ES Module + CSS，无构建、无 npm 包，数据只存在浏览器本地。
 
-- 版本：v1.19
+- 版本：v1.20
 - 项目路径：`D:/DeepseekH/project/study-tracker/`
 
 ## Android 应用（APK）
 
-项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（228,880 字节，约 224 KB，versionCode 18 / versionName 1.19，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）；v1.9 起带今日进度桌面小组件（`TodayWidgetProvider`）；v1.10 起支持标签管理（重命名 / 合并 / 删除，操作前自动存保护快照），统计页新增标签分布；v1.11 起支持 CSV 导入（表格批量补记录，科目按名字自动对上、重复自动跳过、导入前落保护快照），并修好了导出 CSV 时「科目」列空白的问题；v1.12 起支持数据体检（重复记录 / 孤儿记录 / 异常时长一键排查与修复，修复前自动存保护快照）；v1.13 起支持番茄循环（专注 / 短休 / 长休自动衔接，每轮单独落一条记录）；v1.14 起支持年度回顾（一整年的学习总结 + 可保存的年度海报，`#/review`）；v1.15 起支持成就徽章（14 枚徽章成就墙 + 可保存的成就卡，`#/achievements`）；v1.16 起支持学习日历（12 个月日历视图，按天回看与补记，`#/calendar`）；v1.17 起支持学习计划（把任务排到一周的每一天，今日只显示今天，`#/plan`）。v1.18 起学习计划支持重复任务（每天 / 工作日 / 每周）与一键复制上周计划，重复任务可按天勾选、单日跳过或删除整个系列；v1.19 起计划与记录打通：任务可绑定科目，计划页与今日任务都能「一键记一笔」，记录表单自动预填任务标题 / 科目 / 日期，保存后任务自动完成。
+项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（552,464 字节 / 约 540 KB，versionCode 19 / versionName 1.20，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）；v1.9 起带今日进度桌面小组件（`TodayWidgetProvider`）；v1.10 起支持标签管理（重命名 / 合并 / 删除，操作前自动存保护快照），统计页新增标签分布；v1.11 起支持 CSV 导入（表格批量补记录，科目按名字自动对上、重复自动跳过、导入前落保护快照），并修好了导出 CSV 时「科目」列空白的问题；v1.12 起支持数据体检（重复记录 / 孤儿记录 / 异常时长一键排查与修复，修复前自动存保护快照）；v1.13 起支持番茄循环（专注 / 短休 / 长休自动衔接，每轮单独落一条记录）；v1.14 起支持年度回顾（一整年的学习总结 + 可保存的年度海报，`#/review`）；v1.15 起支持成就徽章（14 枚徽章成就墙 + 可保存的成就卡，`#/achievements`）；v1.16 起支持学习日历（12 个月日历视图，按天回看与补记，`#/calendar`）；v1.17 起支持学习计划（把任务排到一周的每一天，今日只显示今天，`#/plan`）。v1.18 起学习计划支持重复任务（每天 / 工作日 / 每周）与一键复制上周计划，重复任务可按天勾选、单日跳过或删除整个系列；v1.19 起计划与记录打通：任务可绑定科目，计划页与今日任务都能「一键记一笔」，记录表单自动预填任务标题 / 科目 / 日期，保存后任务自动完成；v1.20 起换用全新应用图标（摊开的课本 + 对勾），PWA 图标、Android 传统与自适应图标同步更新。
 
 - 壳工程：`android/`（aapt2 + javac + d8 + apksigner 手动构建，无 gradle）
 - 构建脚本：`_tools/build-apk.py`；签名密钥 `android/build/release.keystore`（pass `xuexijilu123`）
@@ -275,7 +275,7 @@ node _tools/server.mjs "D:\path\to\study-tracker" 8123   # 根目录用绝对路
 study-tracker/
 ├─ index.html                # 唯一入口（按顺序引入 8 个样式表）
 ├─ manifest.webmanifest      # PWA 清单
-├─ sw.js                     # Service Worker（离线缓存，CACHE = study-tracker-v23）
+├─ sw.js                     # Service Worker（离线缓存，CACHE = study-tracker-v25）
 ├─ icon.svg                  # 图标源文件
 ├─ icon-180.png              # iOS 主屏图标
 ├─ icon-192.png              # PWA 图标
@@ -338,7 +338,7 @@ study-tracker/
 - 原生 JavaScript ES Module，无框架、无打包器、无第三方依赖
 - 原生 CSS（自定义属性 + 明暗主题），v1.4 起按页面拆成 `css/parts/*.css` 分片
 - hash 路由（`#/xxx`），单页应用，10 个视图
-- Web App Manifest + Service Worker：离线缓存（页面网络优先，静态资源缓存优先 + 后台更新），缓存版本 `study-tracker-v23`；manifest 带三个快捷方式（记一笔 / 看统计 / 专注计时）
+- Web App Manifest + Service Worker：离线缓存（页面网络优先，静态资源缓存优先 + 后台更新），缓存版本 `study-tracker-v25`；manifest 带三个快捷方式（记一笔 / 看统计 / 专注计时）
 - Notification API：计时到点提醒；Android 壳用原生 `Notification` + `NotificationChannel` 常驻通知
 - Canvas 2D 手绘周报海报与打卡卡（无第三方绘图库），Android 端经 MediaStore 存进相册
 - 数据层：`localStorage`，单 store + 订阅驱动重渲染；列表分页由 `querySessions({offset, limit})` 承担，不再有硬上限；v1.5 起按天聚合（`dayBuckets()`）与排序结果都做了缓存，写入时失效、读取时重算一次，统计页 56 格热力图不再 56 次全表扫描
@@ -372,9 +372,10 @@ study-tracker/
 | `test18.mjs` | 23 | v1.17 新增：学习计划（任务按天过滤、周视图 7 卡、完成率、勾选 / 添加 / 删除、周切换、旧任务日期回退、版本一致性） |
 | `test19.mjs` | 19 | v1.18 新增：智能计划（重复任务投影、按天勾选与跳过、删除系列、复制上周计划、计划页重复徽章、版本一致性） |
 | `test20.mjs` | 24 | v1.19 新增：计划与记录打通（任务科目、setTodoDone、记一笔预填与保存后完成、重复任务按天完成、复制保留科目、版本一致性） |
-| **合计** | **334** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
+| `test21.mjs` | 8 | v1.20 新增：应用图标（PWA PNG 尺寸、SVG 矢量图形、Android 5 档 mipmap、432×432 自适应前景透明底、adaptive-icon 资源、版本一致性） |
+| **合计** | **342** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
 
-一条命令跑完全部 20 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
+一条命令跑完全部 21 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
 
 ```bash
 node _tools/run-all.mjs
@@ -400,7 +401,7 @@ node _tools/run-all.mjs <项目根> <输出目录> "C:\Program Files (x86)\Micro
 
 `test8.mjs` 覆盖 v1.7 的新能力：
 
-- **静态一致性**：SW `study-tracker-v12` 且预载 `js/csv.js`、APK versionCode 6 / versionName 1.7、我的页页脚 v1.7、manifest shortcuts 三入口、`removeSessions` 带「删除前保护」标签、MainActivity 有 `saveFile` 三参桥
+- **静态一致性**：SW `study-tracker-v25` 且预载 `js/csv.js`、APK versionCode 19 / versionName 1.20、我的页页脚 v1.20、manifest shortcuts 三入口、`removeSessions` 带「删除前保护」标签、MainActivity 有 `saveFile` 三参桥
 - **csv.js 单元**：BOM 头、表头与行数、含逗号 / 引号字段的转义、日期时间列、文件名 `study-records-YYYYMMDD.csv`
 - **我的页**：存储用量行文案与数值、页脚版本；塞入假损坏留档后「清除损坏留档」行出现，点击确认后留档清零、行消失
 - **记录页批量**：进入批量模式出现勾选圈与底部操作条、勾选 2 条计数正确、批量改科目后 2 条记录 `subjectId` 全部变更、批量删除出现确认弹层且删除后快照 `reason === 'pre-batch'`、全选计数等于当前筛选总数
@@ -430,6 +431,18 @@ Android 侧另有两层校验：
 ---
 
 ## 更新日志
+
+### v1.20
+
+**新增**
+
+- **🎨 全新应用图标**：换用本地 Qwen-Image-2.1 生成的「摊开的课本 + 对勾」图标。白色 glyph 在品牌蓝紫渐变底上，桌面 / 任务栏更醒目；PWA 的 `icon.svg` / `icon-192.png` / `icon-512.png` / `apple-touch-icon` 与 Android 5 档传统 mipmap、432×432 自适应前景全部同步更新
+- 自适应图标继续复用 `brand_start` / `brand_end` 渐变背景，前景按 66% 安全区放置，圆形与圆角方形遮罩下都不裁切
+- `_tools/make_icons.py` 改为以 `icon-design/gen/qwen-notebook.png` 为母本一次性生成 PWA 与 Android 全套图标（中心裁切放大 glyph、圆角透明遮罩、自适应安全区）；旧的 `_tools/_mk_android_icons.py` 已改为直接转调它的兼容入口
+
+**改变**
+
+- 版本号 v1.20、`versionCode 19`、离线缓存 `study-tracker-v25`
 
 ### v1.19
 

@@ -40,10 +40,10 @@ check('计划页重复任务与复制上周 UI',
     && planSrc.includes('openRepeatDeleteSheet') && planSrc.includes('plan-repeat')
     && homeSrc.includes('repeatLabel'), true);
 check('计划重复任务样式', planCss.includes('.plan-repeat') && planCss.includes('.hero-links'), true);
-check('版本：sw v24 / manifest 18-1.19 / 页脚 v1.19',
-  swSrc.includes("const CACHE = 'study-tracker-v24';")
-    && manifestXml.includes('android:versionCode="18"') && manifestXml.includes('android:versionName="1.19"')
-    && meSrc.includes('学习记录 v1.19'), true);
+check('版本：sw v25 / manifest 19-1.20 / 页脚 v1.20',
+  swSrc.includes("const CACHE = 'study-tracker-v25';")
+    && manifestXml.includes('android:versionCode="19"') && manifestXml.includes('android:versionName="1.20"')
+    && meSrc.includes('学习记录 v1.20'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

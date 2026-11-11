@@ -1,12 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="g" x1="0.12" y1="0" x2="0.88" y2="1">
       <stop offset="0%" stop-color="#4f6df5"/>
       <stop offset="100%" stop-color="#7d5cff"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="116" fill="url(#g)"/>
-  <circle cx="256" cy="268" r="126" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="26"/>
-  <path d="M256 178 v92 l62 40" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M256 96 v34 M118 268 h34 M360 268 h34" stroke="#ffffff" stroke-opacity="0.55" stroke-width="22" stroke-linecap="round"/>
+  <rect width="512" height="512" rx="104" fill="url(#g)"/>
+  <rect x="2" y="2" width="508" height="508" rx="102" fill="none" stroke="#b7c2ff" stroke-opacity="0.45" stroke-width="4"/>
+  <g fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M116 218 C158 198 208 200 248 226 L248 398 C208 374 158 372 116 392 Z"/>
+    <path d="M396 218 C354 198 304 200 264 226 L264 398 C304 374 354 372 396 392 Z"/>
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9" stroke-linecap="round">
+    <path d="M150 278 C184 266 214 268 244 282"/>
+    <path d="M362 278 C328 266 298 268 268 282"/>
+    <path d="M150 322 C184 310 214 312 244 326"/>
+    <path d="M362 322 C328 310 298 312 268 326"/>
+  </g>
+  <path d="M196 132 L238 174 L318 94" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

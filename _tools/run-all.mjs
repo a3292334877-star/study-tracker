@@ -1,4 +1,4 @@
-/* run-all：一条命令跑完 20 个测试套件
+/* run-all：一条命令跑完 21 个测试套件
    用法：node _tools/run-all.mjs [ROOT] [OUT] [EDGE]
      ROOT 默认项目根，OUT 默认 <ROOT>/_shots，EDGE 默认自动探测（或环境变量 ST_EDGE）
    做三件事：
@@ -64,6 +64,7 @@ const SUITES = [
   { file: 'test18.mjs', dir: 't18', port: 8138, dbg: 9379, result: 'result18.json' },
   { file: 'test19.mjs', dir: 't19', port: 8139, dbg: 9380, result: 'result19.json' },
   { file: 'test20.mjs', dir: 't20', port: 8140, dbg: 9381, result: 'result20.json' },
+  { file: 'test21.mjs', dir: 't21', port: 8141, dbg: 9382, result: 'result21.json' },
 ];
 
 console.log('ROOT =', ROOT);
