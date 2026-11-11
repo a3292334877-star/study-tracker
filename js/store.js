@@ -670,6 +670,74 @@ export function yearSummary(year) {
   };
 }
 
+/* ---------- 学习日历（v1.16） ----------
+   把一年铺成 12 个月的日历：每天的学习分钟数按记录结束时间归日，
+   和统计 / 日志 / 年度回顾口径一致。返回的数据只用于展示，不额外存状态。 */
+export function calendarYear(year) {
+  const y = Number(year) || new Date().getFullYear();
+  const from = new Date(y, 0, 1).getTime();
+  const to = new Date(y + 1, 0, 1).getTime();
+  const list = state.sessions.filter((s) => s.end >= from && s.end < to);
+  const dayMap = new Map();
+  list.forEach((s) => {
+    const key = dateKey(new Date(s.end));
+    const cur = dayMap.get(key) || { min: 0, count: 0 };
+    cur.min += s.minutes || 0;
+    cur.count += 1;
+    dayMap.set(key, cur);
+  });
+
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    label: (i + 1) + '月',
+    totalMin: 0,
+    count: 0,
+    days: [],
+  }));
+  months.forEach((m) => {
+    const dim = new Date(y, m.month, 0).getDate();
+    for (let d = 1; d <= dim; d++) {
+      const key = dateKey(new Date(y, m.month - 1, d));
+      const bucket = dayMap.get(key) || { min: 0, count: 0 };
+      m.days.push({ key, day: d, minutes: bucket.min, count: bucket.count, level: 0 });
+      m.totalMin += bucket.min;
+      m.count += bucket.count;
+    }
+  });
+
+  const maxDayMin = Math.max(30, ...[...dayMap.values()].map((v) => v.min));
+  months.forEach((m) => m.days.forEach((d) => {
+    d.level = d.minutes === 0 ? 0 : Math.min(4, Math.ceil((d.minutes / maxDayMin) * 4));
+  }));
+
+  const keys = [...dayMap.entries()].filter(([, v]) => v.min > 0).map(([k]) => k).sort();
+  let longest = 0;
+  let run = 0;
+  let prev = null;
+  keys.forEach((k) => {
+    run = prev && dateKey(addDays(parseKey(prev), 1)) === k ? run + 1 : 1;
+    if (run > longest) longest = run;
+    prev = k;
+  });
+  const best = [...dayMap.entries()]
+    .filter(([, v]) => v.min > 0)
+    .sort((a, b) => b[1].min - a[1].min || (a[0] < b[0] ? -1 : 1))[0] || null;
+  let bestMonth = -1;
+  months.forEach((m, i) => { if (m.totalMin > 0 && (bestMonth < 0 || m.totalMin > months[bestMonth].totalMin)) bestMonth = i; });
+
+  return {
+    year: y,
+    totalMin: list.reduce((sum, s) => sum + (s.minutes || 0), 0),
+    count: list.length,
+    activeDays: dayMap.size,
+    longest,
+    bestDay: best ? { key: best[0], min: best[1].min } : null,
+    bestMonth,
+    maxDayMin,
+    months,
+  };
+}
+
 /* ---------- 成就徽章（v1.15） ----------
    把「已经坚持了多久、学了多少、用过多少科目/标签」折算成一组成就，
    数据只来自本地记录，不需要联网，也不额外存状态：每次渲染实时算，

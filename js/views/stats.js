@@ -386,6 +386,12 @@ export function renderStats(ctx) {
       <button class="btn primary block" type="button" data-act="streak-card" aria-label="生成连续打卡分享卡">🎴 打卡卡</button>
     </section>
 
+    <section class="card fade-in" id="calendar-card">
+      <div class="card-title"><h3>学习日历</h3><span class="more">按天回看</span></div>
+      <p class="hint" style="margin:0 0 14px">把一年的每一天铺成一张日历，回看和补记都更方便。</p>
+      <button class="btn block" type="button" data-act="calendar">📅 打开学习日历</button>
+    </section>
+
     <section class="card fade-in" id="year-review-card">
       <div class="card-title"><h3>年度回顾</h3><span class="more">${new Date().getFullYear()} 年</span></div>
       <p class="hint" style="margin:0 0 14px">把一整年的学习叠成一份总结，还能存成年度海报。</p>
@@ -429,6 +435,8 @@ export function renderStats(ctx) {
     if (streakBtn) streakBtn.addEventListener('click', () => openStreakCard());
     const reviewBtn = root.querySelector('[data-act="year-review"]');
     if (reviewBtn) reviewBtn.addEventListener('click', () => { ctx.go('#/review?year=' + new Date().getFullYear()); });
+    const calendarBtn = root.querySelector('[data-act="calendar"]');
+    if (calendarBtn) calendarBtn.addEventListener('click', () => { ctx.go('#/calendar?year=' + new Date().getFullYear()); });
     const trendCanvas = root.querySelector('#trend-canvas');
     if (trendCanvas && trendSeries.length) drawTrendChart(trendCanvas, trendChart);
   }

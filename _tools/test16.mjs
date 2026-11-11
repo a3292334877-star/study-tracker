@@ -1,4 +1,4 @@
-/* test16：v1.15 成就徽章（#/achievements 成就墙 + 成就卡海报 + 文字复制）
+/* test16：v1.16 成就徽章（#/achievements 成就墙 + 成就卡海报 + 文字复制）
    1) 静态：store.achievementStats / achievements 视图 / app 路由 / me 入口 / 版本号
    2) 数据：14 枚徽章定义、解锁数量、进度与统计口径
    3) 界面：成就页英雄数字、徽章分组与点亮态、我的页入口、成就卡 Canvas、文字总结
@@ -43,10 +43,10 @@ check('成就视图与海报函数',
 check('路由与我的页入口',
   appSrc.includes("import { renderAchievements }") && appSrc.includes('achievements: renderAchievements')
     && meSrc.includes('data-act="achievements"') && meSrc.includes('achievementStats()'), true);
-check('版本：sw v20 / manifest 14-1.15 / 页脚 v1.15 / 样式',
-  swSrc.includes("const CACHE = 'study-tracker-v20';")
-    && manifestXml.includes('android:versionCode="14"') && manifestXml.includes('android:versionName="1.15"')
-    && meSrc.includes('学习记录 v1.15')
+check('版本：sw v21 / manifest 15-1.16 / 页脚 v1.16 / 样式',
+  swSrc.includes("const CACHE = 'study-tracker-v21';")
+    && manifestXml.includes('android:versionCode="15"') && manifestXml.includes('android:versionName="1.16"')
+    && meSrc.includes('学习记录 v1.16')
     && swSrc.includes('./js/views/achievements.js') && swSrc.includes('./css/parts/achievements.css')
     && indexHtml.includes('css/parts/achievements.css'), true);
 

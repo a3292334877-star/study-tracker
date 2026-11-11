@@ -10,6 +10,7 @@ import { renderTimer } from './views/timer.js';
 import { renderStats } from './views/stats.js';
 import { renderReview } from './views/review.js';
 import { renderAchievements } from './views/achievements.js';
+import { renderCalendar } from './views/calendar.js';
 import { renderMe } from './views/me.js';
 import { openRecordSheet } from './sheets.js';
 
@@ -21,6 +22,7 @@ const ROUTES = {
   stats: renderStats,
   review: renderReview,
   achievements: renderAchievements,
+  calendar: renderCalendar,
   me: renderMe,
 };
 
