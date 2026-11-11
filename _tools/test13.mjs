@@ -1,7 +1,7 @@
 /* test13：v1.12 数据体检（重复记录 / 孤儿记录 / 异常时长）
    1) store.js：auditData / dedupeSessions / reassignOrphanSessions / fixAbnormalMinutes
    2) me.js：数据卡「数据体检」入口 + 修复弹层
-   3) 版本：sw v21 / manifest 15(1.16) / me 页脚 v1.16
+   3) 版本：sw v22 / manifest 16(1.17) / me 页脚 v1.17
    用法：node _tools/test13.mjs <ROOT> <OUT> <EDGE>   （可选 ST_PORT / ST_DBG，默认 8133 / 9374） */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -33,10 +33,10 @@ check('store.js 体检函数与 pre-audit 快照',
     && storeSrc.includes("if (reason === 'pre-audit') return '体检修复前保护';"), true);
 check('me.js 体检入口与弹层',
   meSrc.includes('data-act="audit"') && meSrc.includes('function openAuditSheet')
-    && meSrc.includes('function auditSummary') && meSrc.includes('学习记录 v1.16'), true);
-check('版本：sw v21 / manifest 15-1.16',
-  swSrc.includes("const CACHE = 'study-tracker-v21';")
-    && manifestXml.includes('android:versionCode="15"') && manifestXml.includes('android:versionName="1.16"'), true);
+    && meSrc.includes('function auditSummary') && meSrc.includes('学习记录 v1.17'), true);
+check('版本：sw v22 / manifest 16-1.17',
+  swSrc.includes("const CACHE = 'study-tracker-v22';")
+    && manifestXml.includes('android:versionCode="16"') && manifestXml.includes('android:versionName="1.17"'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -153,8 +153,8 @@ const final = await evaluate(`(async () => {
   const r = document.querySelector('[data-act="audit"]');
   return { total: a.total, sessions: st.getState().sessions.length, sub: r ? r.querySelector('#audit-sub').textContent : '', footer: document.querySelector('.hint.center') ? document.querySelector('.hint.center').textContent : '' };
 })()`, true);
-check('修复后体检归零且页脚 v1.16', final && final.total === 0 && /一切正常/.test(final.sub)
-  && final.sessions === 4 && /学习记录 v1\.16/.test(final.footer.replace(/\s+/g, ' ')), final);
+check('修复后体检归零且页脚 v1.17', final && final.total === 0 && /一切正常/.test(final.sub)
+  && final.sessions === 4 && /学习记录 v1\.17/.test(final.footer.replace(/\s+/g, ' ')), final);
 
 const cleanSheet = await evaluate(`(async () => {
   document.querySelector('[data-act="audit"]').click();

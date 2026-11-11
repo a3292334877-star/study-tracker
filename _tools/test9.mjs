@@ -1,7 +1,7 @@
 /* test9：v1.8 Android 每日定时提醒
    1) manifest：RECEIVE_BOOT_COMPLETED / SCHEDULE_EXACT_ALARM 权限 + 两个 receiver 声明
    2) ReminderScheduler / DailyReminderReceiver / BootReceiver / MainActivity 桥 静态就绪
-   3) me.js：每日提醒行入口 + 预设时间 + 页脚 v1.16
+   3) me.js：每日提醒行入口 + 预设时间 + 页脚 v1.17
    4) 浏览器（mock window.AndroidApp）：行出现 → 打开 sheet（6 预设、当前时间高亮）
       → 选 21:00 保存 → 桥收到 (21:00,true) 且行刷新 → 关闭提醒 → 桥收到 false 且行显示「关」
    用法：node _tools/test9.mjs <ROOT> <OUT> <EDGE>   （可选 ST_PORT / ST_DBG，默认 8129 / 9364） */
@@ -42,7 +42,7 @@ check('提醒接收器 + 开机接收器就绪', recvSrc.includes('daily_reminde
 check('MainActivity 提醒桥就绪', mainSrc.includes('getDailyReminder') && mainSrc.includes('setDailyReminder')
   && mainSrc.includes('createReminderChannel'), true);
 check('me.js 每日提醒入口', meSrc.includes('data-act="daily-reminder"') && meSrc.includes('getDailyReminder')
-  && meSrc.includes('setDailyReminder') && meSrc.includes('REMINDER_PRESETS') && meSrc.includes('学习记录 v1.16'), true);
+  && meSrc.includes('setDailyReminder') && meSrc.includes('REMINDER_PRESETS') && meSrc.includes('学习记录 v1.17'), true);
 
 /* ---------- 2. 启动静态服务器 + Edge（注入 mock AndroidApp） ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

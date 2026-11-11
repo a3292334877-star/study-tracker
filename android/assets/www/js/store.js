@@ -109,7 +109,10 @@ function normalize(raw) {
       tags: normTags(s.tags),
     })),
     templates: Array.isArray(raw.templates) ? raw.templates : [],
-    todos: Array.isArray(raw.todos) ? raw.todos : [],
+    todos: (Array.isArray(raw.todos) ? raw.todos : []).map((t) => ({
+      ...t,
+      date: todoDate(t),
+    })),
     reviews: raw.reviews && typeof raw.reviews === 'object' ? raw.reviews : {},
   };
 }
@@ -829,9 +832,62 @@ export function removeTemplate(id) {
   commit();
 }
 
-/* ---------- 今日任务 ---------- */
-export function addTodo(text) {
-  const todo = { id: uid(), text: String(text || '').trim(), done: false, createdAt: Date.now() };
+/* ---------- 今日任务 / 学习计划（v1.17） ---------- */
+function isDateKey(v) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) && !Number.isNaN(parseKey(v).getTime());
+}
+function todoDate(t) {
+  if (t && isDateKey(t.date)) return t.date;
+  const ts = Number(t && t.createdAt) || Date.now();
+  return dateKey(new Date(ts));
+}
+export function todosOfDay(key) {
+  return state.todos.filter((t) => todoDate(t) === key);
+}
+/* 一周计划：按当前「每周起始日」把任务和学习时长摊到 7 天 */
+export function planWeek(anchorKey) {
+  const anchor = isDateKey(anchorKey) ? parseKey(anchorKey) : new Date();
+  const ws = startOfWeek(anchor, state.settings.weekStart === 0 ? 0 : 1);
+  const today = dateKey(new Date());
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(ws, i);
+    const key = dateKey(d);
+    const todos = state.todos.filter((t) => todoDate(t) === key);
+    const done = todos.filter((t) => t.done).length;
+    return {
+      key,
+      date: d,
+      weekday: d.getDay(),
+      isToday: key === today,
+      minutes: minutesOfDay(key),
+      count: sessionsOfDay(key).length,
+      todos,
+      total: todos.length,
+      done,
+      pct: todos.length ? Math.round((done / todos.length) * 100) : 0,
+    };
+  });
+  const total = days.reduce((s, d) => s + d.total, 0);
+  const done = days.reduce((s, d) => s + d.done, 0);
+  return {
+    startKey: days[0].key,
+    endKey: days[6].key,
+    days,
+    total,
+    done,
+    pending: total - done,
+    pct: total ? Math.round((done / total) * 100) : 0,
+    minutes: days.reduce((s, d) => s + d.minutes, 0),
+  };
+}
+export function addTodo(text, date) {
+  const todo = {
+    id: uid(),
+    text: String(text || '').trim(),
+    done: false,
+    createdAt: Date.now(),
+    date: isDateKey(date) ? date : dateKey(new Date()),
+  };
   if (!todo.text) return null;
   state.todos.push(todo);
   commit();
@@ -959,8 +1015,8 @@ function seedDemo() {
     }
   }
   state.todos = [
-    { id: uid(), text: '数学：第三章习题 1-10', done: false, createdAt: Date.now(), demo: true },
-    { id: uid(), text: '英语：背 30 个单词', done: true, createdAt: Date.now(), demo: true },
+    { id: uid(), text: '数学：第三章习题 1-10', done: false, createdAt: Date.now(), date: dateKey(new Date()), demo: true },
+    { id: uid(), text: '英语：背 30 个单词', done: true, createdAt: Date.now(), date: dateKey(new Date()), demo: true },
   ];
   state.demo = true;
   state.seeded = true;

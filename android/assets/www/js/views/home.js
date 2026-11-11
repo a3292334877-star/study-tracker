@@ -1,6 +1,6 @@
 /* 今日视图：今天学了什么 + 今天的任务 */
 import {
-  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, removeTodo, lastNDays,
+  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, removeTodo, lastNDays, todosOfDay,
 } from '../store.js';
 import {
   esc, fmtMin, fmtMinShort, dateKey, weekdayCN, monthDayCN, haptic,
@@ -21,7 +21,7 @@ export function renderHome(ctx) {
   const weekMin = week.reduce((s, d) => s + d.minutes, 0);
   const streakDays = streak();
   const left = Math.max(0, goal - todayMin);
-  const todos = state.todos;
+  const todos = todosOfDay(todayKey);
   const doneTodos = todos.filter((t) => t.done).length;
 
   const sub = `${weekdayCN(now)} · ${monthDayCN(now)}`;
@@ -64,7 +64,10 @@ export function renderHome(ctx) {
     <section class="card fade-in">
       <div class="card-title">
         <h3>今日任务${todos.length ? ` <span style="font-size:12px;color:var(--text-3);font-weight:600">${doneTodos}/${todos.length}</span>` : ''}</h3>
-        <button class="more" type="button" data-act="add-todo">+ 添加</button>
+        <span style="display:flex;gap:12px;align-items:center">
+          <button class="more" type="button" data-act="plan">本周计划 ›</button>
+          <button class="more" type="button" data-act="add-todo">+ 添加</button>
+        </span>
       </div>
       <div class="list" id="todo-list">
         ${todos.length ? todos.map((t) => `
@@ -102,13 +105,15 @@ export function renderHome(ctx) {
         ctx.refresh();
       });
     });
+    const planBtn = root.querySelector('[data-act="plan"]');
+    if (planBtn) planBtn.addEventListener('click', () => ctx.go('#/plan'));
     const addBtn = root.querySelector('[data-act="add-todo"]');
     if (addBtn) {
       addBtn.addEventListener('click', async () => {
         const text = await promptSheet({
           title: '添加任务', desc: '今天想完成什么？', placeholder: '例如：数学第三章习题', maxlength: 40,
         });
-        if (text) { addTodo(text); ctx.refresh(); toast('任务已添加'); }
+        if (text) { addTodo(text, todayKey); ctx.refresh(); toast('任务已添加'); }
       });
     }
     root.querySelectorAll('[data-session]').forEach((row) => {
