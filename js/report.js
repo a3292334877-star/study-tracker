@@ -424,6 +424,169 @@ export function streakFilename(d) {
   return `打卡卡-连续${n}天.png`;
 }
 
+/* 年度海报（v1.14）：2x 竖版长图，月度柱 + 科目排行 + 年度标签 */
+export function drawYearPoster(canvas, d) {
+  const F = '"PingFang SC","Microsoft YaHei",sans-serif';
+  const W = 750;
+  const scale = 2;
+  const CARD_X = 40;
+  const CARD_W = W - 80;
+  const IN_X = CARD_X + 40;
+  const IN_W = CARD_W - 80;
+  const CARD_Y = 210;
+  const SEC_HEAD = 46;
+  const ROW_H = 64;
+
+  const subs = d.subjects.slice(0, 4);
+  const sections = [];
+  sections.push({ kind: 'hero', h: 190 });
+  sections.push({ kind: 'stats', h: 150 });
+  sections.push({ kind: 'month', h: SEC_HEAD + 170 });
+  if (subs.length) sections.push({ kind: 'subs', h: SEC_HEAD + subs.length * ROW_H + 8 });
+  if (d.tags.length) sections.push({ kind: 'tags', h: SEC_HEAD + 46 });
+
+  const contentH = sections.reduce((sum, s) => sum + s.h, 0);
+  const CARD_H = 34 + contentH + 30;
+  const H = CARD_Y + CARD_H + 120;
+
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.scale(scale, scale);
+  ctx.textBaseline = 'alphabetic';
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#4f6df5');
+  bg.addColorStop(0.55, '#7d5cff');
+  bg.addColorStop(1, '#5b4bd8');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(660, 96, 170, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(60, H - 130, 150, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = `500 26px ${F}`;
+  ctx.fillText('我 的 年 度 回 顾', W / 2, 78);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 40px ${F}`;
+  ctx.fillText(d.year + ' 年', W / 2, 140);
+
+  roundRect(ctx, CARD_X, CARD_Y, CARD_W, CARD_H, 32);
+  ctx.fillStyle = 'rgba(255,255,255,0.96)';
+  ctx.fill();
+
+  let y = CARD_Y + 34;
+
+  sections.forEach((sec) => {
+    if (sec.kind === 'hero') {
+      const t = fmtMin(d.totalMin);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9aa1b2';
+      ctx.font = `500 26px ${F}`;
+      ctx.fillText('年 度 累 计 学 习', W / 2, y + 34);
+      const nw = (ctx.font = `800 88px ${F}`, ctx.measureText(t.value).width);
+      ctx.font = `500 34px ${F}`;
+      const uw = ctx.measureText(t.unit).width;
+      const left = W / 2 - (nw + 10 + uw) / 2;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a1d2e';
+      ctx.font = `800 88px ${F}`;
+      ctx.fillText(t.value, left, y + 140);
+      ctx.fillStyle = '#6b7280';
+      ctx.font = `500 34px ${F}`;
+      ctx.fillText(t.unit, left + nw + 10, y + 140);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9aa1b2';
+      ctx.font = `400 24px ${F}`;
+      ctx.fillText(d.count + ' 条记录 · 学习 ' + d.activeDays + ' 天', W / 2, y + 178);
+    } else if (sec.kind === 'stats') {
+      const cells = [
+        [d.activeDays + ' 天', '学习天数'],
+        [d.longest + ' 天', '最长连续'],
+        [fmtMinShort(d.bestDay ? d.bestDay.min : 0), '最佳单日'],
+      ];
+      const gap = 12;
+      const bw = (IN_W - gap * 2) / 3;
+      cells.forEach(([v, label], i) => {
+        const bx = IN_X + i * (bw + gap);
+        ctx.fillStyle = '#f4f6fb';
+        roundRect(ctx, bx, y, bw, 118, 22);
+        ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#1a1d2e';
+        ctx.font = `700 36px ${F}`;
+        ctx.fillText(v, bx + bw / 2, y + 56);
+        ctx.fillStyle = '#6b7280';
+        ctx.font = `400 22px ${F}`;
+        ctx.fillText(label, bx + bw / 2, y + 94);
+      });
+    } else if (sec.kind === 'month') {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a1d2e';
+      ctx.font = `600 30px ${F}`;
+      ctx.fillText('月度节奏', IN_X, y + 30);
+      const n = 12;
+      const gapB = 10;
+      const bw = (IN_W - gapB * (n - 1)) / n;
+      const baseY = y + SEC_HEAD + 132;
+      const maxMin = Math.max(1, ...d.byMonth.map((m) => m.min));
+      d.byMonth.forEach((m, i) => {
+        const bh = m.min > 0 ? Math.max(14, Math.round((m.min / maxMin) * 104)) : 6;
+        const bx = IN_X + i * (bw + gapB);
+        ctx.fillStyle = m.min > 0 ? '#4f6df5' : '#eef0f7';
+        roundRect(ctx, bx, baseY - bh, bw, bh, Math.min(8, bw / 2));
+        ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = m.min > 0 ? '#6b7280' : '#c2c8d6';
+        ctx.font = `500 20px ${F}`;
+        ctx.fillText(String(i + 1), bx + bw / 2, baseY + 26);
+      });
+    } else if (sec.kind === 'subs') {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a1d2e';
+      ctx.font = `600 30px ${F}`;
+      ctx.fillText('科目排行', IN_X, y + 30);
+      const maxSub = Math.max(1, ...subs.map((s) => s.min));
+      subs.forEach((s, i) => {
+        const ry = y + SEC_HEAD + i * ROW_H;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#1a1d2e';
+        ctx.font = `500 26px ${F}`;
+        ctx.fillText((s.emoji || '📘') + ' ' + s.name, IN_X, ry + 30);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#6b7280';
+        ctx.font = `500 24px ${F}`;
+        ctx.fillText(fmtMinShort(s.min), IN_X + IN_W, ry + 30);
+        drawBar(ctx, IN_X, ry + 42, IN_W, 12, s.min / maxSub, s.color || '#4f6df5');
+      });
+    } else if (sec.kind === 'tags') {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a1d2e';
+      ctx.font = `600 30px ${F}`;
+      ctx.fillText('常用标签', IN_X, y + 30);
+      ctx.fillStyle = '#6b7280';
+      ctx.font = `400 26px ${F}`;
+      const txt = d.tags.slice(0, 6).map((t) => '#' + t.name).join('   ');
+      ctx.fillText(txt, IN_X, y + 74, IN_W);
+    }
+    y += sec.h;
+  });
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = `500 24px ${F}`;
+  ctx.fillText('记录 · 坚持 · 成长 —— 来自「学习记录」', W / 2, H - 52);
+
+  ctx.restore();
+  return canvas;
+}
+
 function drawBar(ctx, x, y, w, h, ratio, color) {
   ctx.fillStyle = '#eef0f7';
   roundRect(ctx, x, y, w, h, h / 2);

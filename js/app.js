@@ -8,6 +8,7 @@ import { renderLog } from './views/log.js';
 import { renderSubjects } from './views/subjects.js';
 import { renderTimer } from './views/timer.js';
 import { renderStats } from './views/stats.js';
+import { renderReview } from './views/review.js';
 import { renderMe } from './views/me.js';
 import { openRecordSheet } from './sheets.js';
 
@@ -17,6 +18,7 @@ const ROUTES = {
   subjects: renderSubjects,
   timer: renderTimer,
   stats: renderStats,
+  review: renderReview,
   me: renderMe,
 };
 

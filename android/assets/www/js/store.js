@@ -603,6 +603,73 @@ export function longestStreak() {
   return best;
 }
 
+/* ---------- 年度回顾（v1.14） ----------
+   按记录结束时间归年（与统计/日志口径一致），返回一年内的总量、12 个月、
+   科目/标签排行、最长连续、最佳单日、最活跃月份与最常开始学习的时段。 */
+export function yearSummary(year) {
+  const y = Number(year) || new Date().getFullYear();
+  const from = new Date(y, 0, 1).getTime();
+  const to = new Date(y + 1, 0, 1).getTime();
+  const list = state.sessions.filter((s) => s.end >= from && s.end < to);
+  const byMonth = Array.from({ length: 12 }, () => ({ min: 0, count: 0 }));
+  const subMap = new Map();
+  const tagMap = new Map();
+  const hourMap = new Array(24).fill(0);
+  const dayMap = new Map();
+  list.forEach((s) => {
+    const d = new Date(s.end);
+    const mi = d.getMonth();
+    byMonth[mi].min += s.minutes || 0;
+    byMonth[mi].count += 1;
+    const id = s.subjectId || '__none';
+    subMap.set(id, (subMap.get(id) || 0) + (s.minutes || 0));
+    (Array.isArray(s.tags) ? s.tags : []).forEach((t) => tagMap.set(t, (tagMap.get(t) || 0) + 1));
+    hourMap[new Date(s.start).getHours()] += 1;
+    const k = dateKey(d);
+    dayMap.set(k, (dayMap.get(k) || 0) + (s.minutes || 0));
+  });
+  const subjects = [...subMap.entries()]
+    .map(([id, min]) => {
+      const sub = getSubject(id);
+      return { id, name: sub?.name || '未分类', emoji: sub?.emoji || '📘', color: sub?.color || '#98a0b3', min };
+    })
+    .sort((a, b) => b.min - a.min);
+  const tags = [...tagMap.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || (a.name < b.name ? -1 : 1))
+    .slice(0, 8);
+  const keys = [...dayMap.keys()].sort();
+  let longest = 0;
+  let run = 0;
+  let prev = null;
+  keys.forEach((k) => {
+    run = prev && dateKey(addDays(parseKey(prev), 1)) === k ? run + 1 : 1;
+    if (run > longest) longest = run;
+    prev = k;
+  });
+  const best = [...dayMap.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0] || null;
+  let bestMonth = -1;
+  byMonth.forEach((m, i) => { if (m.min > 0 && (bestMonth < 0 || m.min > byMonth[bestMonth].min)) bestMonth = i; });
+  let peakHour = -1;
+  let peakCount = 0;
+  hourMap.forEach((c, h) => { if (c > peakCount) { peakCount = c; peakHour = h; } });
+  return {
+    year: y,
+    totalMin: list.reduce((sum, s) => sum + (s.minutes || 0), 0),
+    count: list.length,
+    activeDays: dayMap.size,
+    byMonth,
+    subjects,
+    tags,
+    longest,
+    bestDay: best ? { key: best[0], min: best[1] } : null,
+    bestMonth,
+    peakHour,
+    firstKey: keys[0] || null,
+    lastKey: keys[keys.length - 1] || null,
+  };
+}
+
 /* ---------- 记一笔模板（v1.4） ---------- */
 export function getTemplates() {
   return [...state.templates].sort(

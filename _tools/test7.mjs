@@ -34,13 +34,13 @@ const pkg = {
   versionCode: (manifest.match(/android:versionCode="(\d+)"/) || [])[1] || '',
   versionName: (manifest.match(/android:versionName="([^"]+)"/) || [])[1] || '',
   banner: /id="storage-warn"/.test(indexHtml),
-  meVersion: /学习记录 v1\.13/.test(meSrc),
+  meVersion: /学习记录 v1\.14/.test(meSrc),
   demoRow: /data-act="clear-demo"/.test(meSrc),
   clearDemoExport: /export function clearDemo\(\)/.test(storeSrc),
   preClearLabel: /清空前保护/.test(storeSrc),
   corruptKey: /study-tracker\/corrupt\//.test(storeSrc),
 };
-check('v1.13 版本一致性', pkg.sw === 'study-tracker-v18' && pkg.versionCode === '12' && pkg.versionName === '1.13', pkg);
+check('v1.14 版本一致性', pkg.sw === 'study-tracker-v19' && pkg.versionCode === '13' && pkg.versionName === '1.14', pkg);
 check('可靠性入口已就绪', pkg.banner && pkg.meVersion && pkg.demoRow && pkg.clearDemoExport && pkg.preClearLabel && pkg.corruptKey, pkg);
 
 /* ---------- 2. 启动静态服务器 + Edge ---------- */
