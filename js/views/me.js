@@ -3,6 +3,7 @@ import {
   getState, setSetting, exportJSON, importJSON, resetAll,
   listBackups, saveBackupSnapshot, removeBackup, restoreBackup,
   clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
+  tagStats, renameTag, removeTag,
 } from '../store.js';
 import {
   applyTheme, openSheet, closeSheet, toast, fmtMinShort, dateKey,
@@ -111,6 +112,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">专注计时</div><div class="row-sub">想掐时间的时候用，结束自动落一条记录</div></div>
         <div class="row-chev">›</div>
       </button>
+      <button class="row" type="button" data-act="tag-manage">
+        <div class="row-ic">🏷️</div>
+        <div class="row-main"><div class="row-title">标签管理</div><div class="row-sub">${tagStats().length} 个标签 · 重命名 / 合并 / 删除</div></div>
+        <div class="row-chev">›</div>
+      </button>
     </section>
 
     <div class="section-label">数据</div>
@@ -167,7 +173,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.9 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.10 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -182,6 +188,8 @@ export function renderMe(ctx) {
     if (drRow) drRow.addEventListener('click', () => openDailyReminderSheet(ctx));
     root.querySelector('[data-act="subjects"]').addEventListener('click', () => ctx.go('#/subjects'));
     root.querySelector('[data-act="timer"]').addEventListener('click', () => ctx.go('#/timer'));
+    const tagRow = root.querySelector('[data-act="tag-manage"]');
+    if (tagRow) tagRow.addEventListener('click', () => openTagSheet(ctx));
     const abRow = root.querySelector('[data-act="autobackup"]');
     if (abRow) abRow.addEventListener('click', () => toggleAutoBackup(ctx));
     const bnRow = root.querySelector('[data-act="backup-now"]');
@@ -728,3 +736,67 @@ function toggleAutoBackup(ctx) {
   toast(!cur ? '自动备份已开启' : '自动备份已关闭');
   ctx.refresh();
 }
+
+/* ---------- v1.10：标签管理（重命名 / 合并 / 删除） ---------- */
+function openTagSheet(ctx) {
+  const rows = tagStats();
+  if (!rows.length) { toast('还没有标签，记一笔时就能加'); return; }
+  const list = rows.map((r) => `<button class="row" type="button" data-tag="${esc(r.tag)}">
+        <div class="row-main"><div class="row-title">#${esc(r.tag)}</div>
+          <div class="row-sub">${r.count} 条记录${r.minutes ? ' · ' + fmtMinShort(r.minutes) : ''}</div></div>
+        <div class="row-chev">›</div>
+      </button>`).join('');
+  openSheet(`
+    <h2 class="sheet-title">标签管理</h2>
+    <p class="sheet-desc">共 ${rows.length} 个标签 · 点一个可以重命名、合并或删除</p>
+    <div class="list">${list}</div>
+  `, (sheet) => {
+    sheet.querySelectorAll('[data-tag]').forEach((btn) => {
+      btn.addEventListener('click', () => openTagActions(btn.dataset.tag, ctx));
+    });
+  });
+}
+
+function openTagActions(tag, ctx) {
+  const row = tagStats().find((r) => r.tag === tag);
+  const count = row ? row.count : 0;
+  openSheet(`
+    <h2 class="sheet-title">#${esc(tag)}</h2>
+    <p class="sheet-desc">出现在 ${count} 条记录里</p>
+    <div class="sheet-actions" style="flex-direction:column;gap:10px">
+      <button class="btn" type="button" data-do="rename">重命名 / 合并到其他标签</button>
+      <button class="btn" type="button" data-do="del" style="color:var(--danger)">删除这个标签</button>
+      <button class="btn" type="button" data-do="cancel">取消</button>
+    </div>
+  `, (sheet) => {
+    sheet.querySelector('[data-do="cancel"]').addEventListener('click', closeSheet);
+    sheet.querySelector('[data-do="rename"]').addEventListener('click', async () => {
+      const next = await promptSheet({
+        title: '重命名标签',
+        desc: '改成已有标签会自动合并；记录数不会丢。',
+        value: tag, placeholder: '新标签名', maxlength: 12, okText: '保存',
+      });
+      if (next == null) return;
+      const to = String(next).trim().replace(/^#/, '');
+      if (!to || to === tag) { toast('标签名没有变化'); return; }
+      const n = renameTag(tag, to);
+      haptic();
+      if (n) { closeSheet(); toast('已把 ' + n + ' 条记录的 #' + tag + ' 改为 #' + to); ctx.refresh(); }
+      else { toast('没有需要改动的记录'); }
+    });
+    sheet.querySelector('[data-do="del"]').addEventListener('click', async () => {
+      const ok = await confirmSheet({
+        title: '删除标签 #' + tag + '？',
+        desc: '会把它从 ' + count + ' 条记录上移除，记录本身和其他内容不受影响。',
+        okText: '删除', danger: true,
+      });
+      if (!ok) return;
+      const n = removeTag(tag);
+      haptic();
+      closeSheet();
+      toast(n ? '已从 ' + n + ' 条记录移除 #' + tag : '标签已不存在');
+      ctx.refresh();
+    });
+  });
+}
+

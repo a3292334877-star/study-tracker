@@ -2,12 +2,12 @@
 
 记下每天学了什么，看见自己的积累。零依赖纯静态 PWA，原生 ES Module + CSS，无构建、无 npm 包，数据只存在浏览器本地。
 
-- 版本：v1.9
+- 版本：v1.10
 - 项目路径：`D:/DeepseekH/project/study-tracker/`
 
 ## Android 应用（APK）
 
-项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（199,665 字节，约 195 KB，versionCode 8 / versionName 1.9，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）；v1.9 起带今日进度桌面小组件（`TodayWidgetProvider`）。
+项目同时打包为真正的 Android 应用：**`study-tracker.apk`**（199,665 字节，约 195 KB，versionCode 9 / versionName 1.10，minSdk 24 / targetSdk 34，arm64 与 x86_64 通用）。导出功能在壳内可用：备份 / CSV 落到 `Download/学习记录/`，海报存相册 `Pictures/学习记录/`；v1.8 起支持系统级每日提醒（`ReminderScheduler` + 开机自恢复）；v1.9 起带今日进度桌面小组件（`TodayWidgetProvider`）；v1.10 起支持标签管理（重命名 / 合并 / 删除，操作前自动存保护快照），统计页新增标签分布。
 
 - 壳工程：`android/`（aapt2 + javac + d8 + apksigner 手动构建，无 gradle）
 - 构建脚本：`_tools/build-apk.py`；签名密钥 `android/build/release.keystore`（pass `xuexijilu123`）
@@ -213,7 +213,7 @@ node _tools/server.mjs "D:\path\to\study-tracker" 8123   # 根目录用绝对路
 - 所有数据仅保存在**当前浏览器的 localStorage**，不上传任何服务器，不跨设备同步。
 - 主数据键名：`study-tracker/v1`（科目、记录、标签、模板、任务、设置）
 - 计时器状态键名：`study-tracker/timer`
-- 快照列表键名：`study-tracker/backups/v1`（最多 7 份，每份含名称、原因、时间与完整数据快照，`reason` 取值 `auto` / `manual` / `pre-restore` / `pre-import` / `pre-clear`）；v1.3 的单份快照 `study-tracker/backup-latest` 只用于一次性迁移，读到时自动并进新列表
+- 快照列表键名：`study-tracker/backups/v1`（最多 7 份，每份含名称、原因、时间与完整数据快照，`reason` 取值 `auto-daily` / `manual` / `pre-restore` / `pre-import` / `pre-clear` / `pre-batch` / `pre-tag`）；v1.3 的单份快照 `study-tracker/backup-latest` 只用于一次性迁移，读到时自动并进新列表
 - 损坏留档键名：`study-tracker/corrupt/<时间戳>`。主数据键解析失败时不会直接丢弃：先把原始字符串原样存进这个键，再尝试用最近一份可用快照恢复；恢复不了就从空数据起步，并在打开时弹 toast 说明（v1.6）
 - Android 端额外落盘：海报 / 打卡卡图片 `Pictures/学习记录/`，静默备份 `getFilesDir()/backup/backup.json`
 - **首次打开会写入示例数据**：4 个示例科目（高等数学 / 数据结构 / 英语 / 算法竞赛）和最近几周的示例记录（含今天），方便直接看到完整界面。示例数据都带 `demo` 标记，可以只删示例、保留自己写的：在「我的 → 移除示例数据」一键清掉，自己新增的记录 / 科目 / 任务 / 待办不受影响；在「我的 → 清空所有数据」清空后，也不再自动生成示例数据。
@@ -228,7 +228,7 @@ node _tools/server.mjs "D:\path\to\study-tracker" 8123   # 根目录用绝对路
 study-tracker/
 ├─ index.html                # 唯一入口（按顺序引入 5 个样式表）
 ├─ manifest.webmanifest      # PWA 清单
-├─ sw.js                     # Service Worker（离线缓存，CACHE = study-tracker-v9）
+├─ sw.js                     # Service Worker（离线缓存，CACHE = study-tracker-v15）
 ├─ icon.svg                  # 图标源文件
 ├─ icon-180.png              # iOS 主屏图标
 ├─ icon-192.png              # PWA 图标
@@ -306,9 +306,12 @@ study-tracker/
 | `test6.mjs` | 35 | v1.4 / v1.5 新增：离线完整性、性能、无障碍、新功能 |
 | `test7.mjs` | 18 | v1.6 新增：写盘失败提示、示例数据隔离、清空前 / 导入前快照、数据损坏恢复 |
 | `test8.mjs` | 21 | v1.7 新增：存储用量与留档清理、批量操作（勾选 / 改科目 / 删除快照）、CSV 转义与导出、统计三卡 |
-| **合计** | **139** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
+| `test9.mjs` | 12 | v1.8 新增：每日提醒（manifest 权限与 receiver、调度器 / 接收器 / 桥静态就绪、mock 壳保存流程） |
+| `test10.mjs` | 10 | v1.9 新增：今日进度小组件（三个 res、Provider、app.js 推送钩子） |
+| `test11.mjs` | 14 | v1.10 新增：标签管理（store 改名 / 合并 / 删除 + 保护快照）、我的页入口与弹层、统计页标签分布 |
+| **合计** | **175** | 全部通过，控制台除 PWA `beforeinstallprompt` 提示外无错误 |
 
-一条命令跑完全部 8 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
+一条命令跑完全部 11 个套件（自带静态服务器、串行执行、结束汇总通过数，任一失败退出码 1）：
 
 ```bash
 node _tools/run-all.mjs
@@ -364,6 +367,22 @@ Android 侧另有两层校验：
 ---
 
 ## 更新日志
+
+### v1.10
+
+**新增**
+
+- **标签管理**：「我的 → 工具」新增「标签管理」入口，列出每个标签的记录数与累计时长。点开任一标签可以：
+  - **重命名**：只改这个标签，记录和模板一起改；
+  - **合并**：把标签改成另一个已存在的名字，效果就是两条并成一条（自动去重、不超 6 个上限）；
+  - **删除**：从所有记录与模板上摘掉这个标签，记录本身不动。
+- **操作前自动保护**：改名 / 合并 / 删除之前都会先落一份「标签操作前保护」快照（新 reason `pre-tag`），照着 v1.7 的批量保护走同一套备份机制，最多 7 份自动滚动，误点可在「我的 → 数据 → 备份快照」里恢复
+- **统计页「标签分布」**：按当前时间范围统计每个标签的累计时长（没记时长时退回按条数），最多显示前 8 个，复用统计页既有条形样式与配色
+- `_tools/test11.mjs`：14 项 v1.10 用例（store 层改名 / 合并 / 删除与保护快照、我的页入口与两级弹层、删除全流程、统计页标签分布卡、版本一致性），套件合计 161 → 175 项；`run-all.mjs` 扩到 11 个套件
+
+**改变**
+
+- 版本号 v1.10、`versionCode 9`、离线缓存 `study-tracker-v15`
 
 ### v1.9
 

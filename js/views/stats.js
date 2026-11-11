@@ -140,6 +140,21 @@ export function renderStats(ctx) {
     .sort((a, b) => b.min - a.min || b.count - a.count);
   const maxSubject = Math.max(1, ...subjectRows.map((r) => r.min));
 
+  /* v1.10：标签分布（跟随当前筛选范围，按累计时长排序，最多 8 个） */
+  const tagMap = new Map();
+  inRange.forEach((s) => {
+    (Array.isArray(s.tags) ? s.tags : []).forEach((t) => {
+      const row = tagMap.get(t) || { tag: t, count: 0, minutes: 0 };
+      row.count += 1;
+      row.minutes += s.minutes || 0;
+      tagMap.set(t, row);
+    });
+  });
+  const tagRows = [...tagMap.values()]
+    .sort((a, b) => b.minutes - a.minutes || b.count - a.count || (a.tag < b.tag ? -1 : 1))
+    .slice(0, 8);
+  const tagMax = Math.max(1, ...tagRows.map((r) => r.minutes || r.count));
+
   /* 本周目标进度（仅周视图展示） */
   const weekInfo = weekData(weekStart);
   const weekGoalRows = weekInfo.subjects
@@ -291,6 +306,17 @@ export function renderStats(ctx) {
           <span class="bar-val">${r.min ? fmtMinShort(r.min) : `${r.count} 条`}</span>
         </div>`).join('')}
       </div>` : `<div class="empty"><span class="em">📊</span><p>这个时间段还没有记录</p></div>`}
+    </section>
+
+    <section class="card fade-in">
+      <div class="card-title"><h3>标签分布</h3><span class="more">按标签看时间去向</span></div>
+      ${tagRows.length ? `<div class="bars">
+        ${tagRows.map((r) => `<div class="bar-line">
+          <span class="name">#${esc(r.tag)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, Math.round(((r.minutes || r.count) / tagMax) * 100))}%;background:#7d5cff"></div></div>
+          <span class="bar-val">${r.minutes ? fmtMinShort(r.minutes) : r.count + ' 条'}</span>
+        </div>`).join('')}
+      </div>` : `<div class="empty"><span class="em">🏷️</span><p>这个时间段还没有用过标签</p></div>`}
     </section>
 
     <section class="card fade-in">

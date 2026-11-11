@@ -1,10 +1,10 @@
-/* run-all：一条命令跑完 10 个测试套件
+/* run-all：一条命令跑完 11 个测试套件
    用法：node _tools/run-all.mjs [ROOT] [OUT] [EDGE]
      ROOT 默认项目根，OUT 默认 <ROOT>/_shots，EDGE 默认自动探测（或环境变量 ST_EDGE）
    做三件事：
      1) 用【绝对路径】ROOT 起静态服务器（8123）——test2~test6 依赖外部服务器，
         传相对路径会被 server.mjs 的目录越界守卫判成 403；
-     2) 串行跑 test.mjs → test2 ~ test10，各自独立 OUT 子目录与调试端口，
+     2) 串行跑 test.mjs → test2 ~ test11，各自独立 OUT 子目录与调试端口，
         避免 DBG 端口 / user-data-dir 撞车（不要并行跑，只能串行）；
      3) 汇总每个套件的 通过/总数，任一失败则退出码 1。 */
 import { spawn } from 'node:child_process';
@@ -54,6 +54,7 @@ const SUITES = [
   { file: 'test8.mjs', dir: 't8', port: 8128, dbg: 9362, result: 'result8.json' },
   { file: 'test9.mjs', dir: 't9', port: 8129, dbg: 9364, result: 'result9.json' },
   { file: 'test10.mjs', dir: 't10', port: 8130, dbg: 9366, result: 'result10.json' },
+  { file: 'test11.mjs', dir: 't11', port: 8131, dbg: 9368, result: 'result11.json' },
 ];
 
 console.log('ROOT =', ROOT);

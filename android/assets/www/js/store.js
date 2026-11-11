@@ -434,6 +434,77 @@ export function allTags() {
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count || (a.tag < b.tag ? -1 : 1));
 }
+/* v1.10：标签使用统计（出现次数 + 累计分钟），次数降序 */
+export function tagStats() {
+  const map = new Map();
+  state.sessions.forEach((s) => {
+    (Array.isArray(s.tags) ? s.tags : []).forEach((t) => {
+      const row = map.get(t) || { tag: t, count: 0, minutes: 0 };
+      row.count += 1;
+      row.minutes += s.minutes || 0;
+      map.set(t, row);
+    });
+  });
+  return [...map.values()].sort((a, b) => b.count - a.count || b.minutes - a.minutes || (a.tag < b.tag ? -1 : 1));
+}
+
+/* v1.10：把标签 from 改为 to（to 已存在即合并）。记录与模板一起改，返回受影响记录数 */
+export function renameTag(from, to) {
+  const src = normTags([from])[0];
+  const dst = normTags([to])[0];
+  if (!src || !dst || src === dst) return 0;
+  const has = state.sessions.some((s) => Array.isArray(s.tags) && s.tags.includes(src))
+    || state.templates.some((t) => Array.isArray(t.tags) && t.tags.includes(src));
+  if (!has) return 0;
+  saveBackupSnapshot('pre-tag');
+  let n = 0;
+  const swap = (tags) => {
+    const arr = Array.isArray(tags) ? tags : [];
+    if (!arr.includes(src)) return null;
+    const next = [];
+    arr.forEach((t) => {
+      const v = t === src ? dst : t;
+      if (!next.includes(v)) next.push(v);
+    });
+    return next.slice(0, TAGS_MAX);
+  };
+  state.sessions.forEach((s) => {
+    const next = swap(s.tags);
+    if (next) { s.tags = next; n += 1; }
+  });
+  state.templates.forEach((t) => {
+    const next = swap(t.tags);
+    if (next) t.tags = next;
+  });
+  if (n) commit();
+  return n;
+}
+
+/* v1.10：从所有记录与模板上删除标签，返回受影响记录数 */
+export function removeTag(tag) {
+  const src = normTags([tag])[0];
+  if (!src) return 0;
+  const has = state.sessions.some((s) => Array.isArray(s.tags) && s.tags.includes(src))
+    || state.templates.some((t) => Array.isArray(t.tags) && t.tags.includes(src));
+  if (!has) return 0;
+  saveBackupSnapshot('pre-tag');
+  let n = 0;
+  const strip = (tags) => {
+    const arr = Array.isArray(tags) ? tags : [];
+    return arr.includes(src) ? arr.filter((t) => t !== src) : null;
+  };
+  state.sessions.forEach((s) => {
+    const next = strip(s.tags);
+    if (next) { s.tags = next; n += 1; }
+  });
+  state.templates.forEach((t) => {
+    const next = strip(t.tags);
+    if (next) t.tags = next;
+  });
+  if (n) commit();
+  return n;
+}
+
 /* 按天分组（用于时间线）：返回 [{key, date, sessions, minutes}]，新到旧 */
 export function groupByDay(sessions) {
   const map = new Map();
@@ -829,6 +900,7 @@ function backupLabel(reason) {
   if (reason === 'pre-import') return '导入前保护';
   if (reason === 'pre-clear') return '清空前保护';
   if (reason === 'pre-batch') return '删除前保护';
+  if (reason === 'pre-tag') return '标签操作前保护';
   return '手动备份';
 }
 export function saveBackupSnapshot(reason = 'manual', name = '') {
