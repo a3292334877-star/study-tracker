@@ -23,6 +23,13 @@
   font-size:12px;color:var(--text-3);font-weight:500;line-height:1.5;
   margin-top:2px;font-variant-numeric:tabular-nums;
 }
+/* v1.27 记录回收站：批次预览最多两行，按钮保持顶部对齐 */
+.mez-trash-row{align-items:flex-start}
+.mez-trash-preview{
+  font-size:12px;color:var(--text-2);font-weight:500;line-height:1.5;
+  margin-top:3px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
 
 /* 行内小按钮：无障碍 44px 触控高度 */
 .mez-mini{

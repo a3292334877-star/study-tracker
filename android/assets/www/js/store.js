@@ -12,6 +12,10 @@ const BACKUPS_KEY = 'study-tracker/backups/v1';        // v1.4 多份快照
 const BACKUPS_MAX = 7;
 const TAGS_MAX = 6;
 const CORRUPT_KEY_PREFIX = 'study-tracker/corrupt/';   // v1.6：读不动的原始数据留档，不静默丢弃
+const TRASH_KEY = 'study-tracker/trash/v1';             // v1.27：记录回收站（独立于主数据，误删可找回）
+const TRASH_MAX_BATCHES = 20;
+const TRASH_MAX_SESSIONS = 200;
+const TRASH_TTL = 30 * 24 * 60 * 60 * 1000;
 export const STORAGE_ERROR_EVENT = 'study-tracker:storage-error';  // 写盘失败广播（UI 收一次）
 export const STORAGE_RECOVERED_EVENT = 'study-tracker:storage-recovered';  // 从失败恢复后广播一次，UI 收起提示条
 
@@ -372,6 +376,7 @@ export function removeSession(id) {
   const idx = state.sessions.findIndex((s) => s.id === id);
   if (idx < 0) return null;
   const [removed] = state.sessions.splice(idx, 1);
+  pushTrash([removed], 'delete');   // v1.27：删除前先放进回收站，误删也能找回
   delete state.memory[id];
   commit();
   return removed;
@@ -383,6 +388,7 @@ export function removeSessions(ids) {
   const removed = state.sessions.filter((s) => set.has(s.id));
   if (!removed.length) return [];
   saveBackupSnapshot('pre-batch');
+  pushTrash(removed, 'batch-delete');   // v1.27：批量删除也进回收站
   state.sessions = state.sessions.filter((s) => !set.has(s.id));
   ids.forEach((id) => { delete state.memory[id]; });
   commit();
@@ -391,6 +397,7 @@ export function removeSessions(ids) {
 /* 撤销删除：原样放回（保留 id 与时间，避免重复插入） */
 export function restoreSession(session) {
   if (!session || !session.id) return null;
+  dropTrashSessions([session.id]);   // 撤销删除时，把回收站里的同一份一并拿走，避免重复出现
   if (state.sessions.some((s) => s.id === session.id)) return session;
   const restored = { ...session, tags: normTags(session.tags) };
   state.sessions.push(restored);
@@ -1651,6 +1658,7 @@ export function hasDemoData() {
 }
 export function resetAll() {
   saveBackupSnapshot('pre-clear');   // v1.6：清空前先留一份，别让「不可恢复」变成真的
+  clearTrash();                      // v1.27：清空所有数据也包括回收站里的旧副本
   state = defaultState();
   state.seeded = true;   // 用户主动清空后，不再自动灌入示例数据
   save();
@@ -1965,6 +1973,129 @@ export function saveBackupSnapshot(reason = 'manual', name = '') {
 }
 export function removeBackup(id) {
   writeBackups(listBackups().filter((b) => b.id !== id));
+}
+
+/* ---------- 记录回收站（v1.27） ----------
+   删除的单个/批量记录先放进这里，默认保留 30 天；最多 20 批 / 200 条，
+   超出时从最旧的批次开始丢，避免回收站自己把存储吃满。 */
+function readTrashRaw() {
+  try {
+    const raw = localStorage.getItem(TRASH_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch (_) { return []; }
+}
+function writeTrash(list) {
+  try { localStorage.setItem(TRASH_KEY, JSON.stringify(list)); }
+  catch (err) { console.warn('[store] 回收站写入失败', err); }
+}
+function pruneTrashList(input) {
+  const now = Date.now();
+  const list = (Array.isArray(input) ? input : [])
+    .filter((item) => item && Number(item.at) >= now - TRASH_TTL && Array.isArray(item.sessions) && item.sessions.length)
+    .map((item) => ({
+      ...item,
+      id: item.id || uid(),
+      at: Number(item.at) || 0,
+      reason: String(item.reason || 'delete'),
+      sessions: item.sessions.filter((s) => s && s.id),
+    }))
+    .filter((item) => item.sessions.length)
+    .sort((a, b) => b.at - a.at);
+  let total = list.reduce((n, item) => n + item.sessions.length, 0);
+  while (list.length > TRASH_MAX_BATCHES) {
+    total -= list.pop().sessions.length;
+  }
+  while (total > TRASH_MAX_SESSIONS && list.length) {
+    const last = list[list.length - 1];
+    const over = total - TRASH_MAX_SESSIONS;
+    if (last.sessions.length <= over) {
+      total -= last.sessions.length;
+      list.pop();
+    } else {
+      last.sessions = last.sessions.slice(0, last.sessions.length - over);
+      total -= over;
+    }
+  }
+  return list;
+}
+export function listTrash() {
+  const raw = readTrashRaw();
+  const list = pruneTrashList(raw);
+  if (JSON.stringify(list) !== JSON.stringify(raw)) writeTrash(list);
+  return list.map((item) => ({
+    ...item,
+    count: item.sessions.length,
+    totalMin: item.sessions.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0),
+  }));
+}
+export function trashStats() {
+  const list = listTrash();
+  return {
+    batches: list.length,
+    count: list.reduce((n, item) => n + item.count, 0),
+  };
+}
+export function trashCount() { return trashStats().count; }
+export function pushTrash(sessions, reason = 'delete') {
+  const arr = (Array.isArray(sessions) ? sessions : [])
+    .filter((s) => s && s.id)
+    .map((s) => JSON.parse(JSON.stringify(s)));
+  if (!arr.length) return null;
+  const item = {
+    id: uid(),
+    at: Date.now(),
+    reason: String(reason || 'delete'),
+    sessions: arr,
+  };
+  const list = pruneTrashList([item, ...readTrashRaw()]);
+  writeTrash(list);
+  return item;
+}
+function dropTrashSessions(ids) {
+  const set = new Set((Array.isArray(ids) ? ids : []).map(String));
+  if (!set.size) return;
+  const raw = readTrashRaw();
+  let changed = false;
+  const next = [];
+  raw.forEach((item) => {
+    if (!item || !Array.isArray(item.sessions)) return;
+    const kept = item.sessions.filter((s) => !set.has(String(s && s.id)));
+    if (kept.length !== item.sessions.length) changed = true;
+    if (kept.length) next.push({ ...item, sessions: kept });
+  });
+  if (changed) writeTrash(next);
+}
+export function restoreTrash(id) {
+  const raw = readTrashRaw();
+  const idx = raw.findIndex((item) => item && item.id === id);
+  if (idx < 0) return { restored: 0, skipped: 0 };
+  const batch = raw[idx];
+  let restored = 0;
+  let skipped = 0;
+  (Array.isArray(batch.sessions) ? batch.sessions : []).forEach((s) => {
+    if (!s || !s.id) return;
+    if (state.sessions.some((x) => x.id === s.id)) { skipped += 1; return; }
+    state.sessions.push({ ...s, tags: normTags(s.tags) });
+    restored += 1;
+  });
+  raw.splice(idx, 1);
+  writeTrash(raw);
+  commit();
+  return { restored, skipped };
+}
+export function removeTrash(id) {
+  const raw = readTrashRaw();
+  const hit = raw.find((item) => item && item.id === id);
+  if (!hit) return 0;
+  writeTrash(raw.filter((item) => !item || item.id !== id));
+  return Array.isArray(hit.sessions) ? hit.sessions.length : 0;
+}
+export function clearTrash() {
+  const raw = readTrashRaw();
+  const count = raw.reduce((n, item) => n + (Array.isArray(item && item.sessions) ? item.sessions.length : 0), 0);
+  writeTrash([]);
+  return count;
 }
 
 export function checkAutoBackup() {

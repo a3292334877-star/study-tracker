@@ -2,6 +2,7 @@
 import {
   getState, setSetting, exportJSON, importJSON, resetAll,
   listBackups, saveBackupSnapshot, removeBackup, restoreBackup,
+  listTrash, trashStats, restoreTrash, removeTrash, clearTrash,
   clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
   tagStats, renameTag, removeTag, importSessions,
   auditData, dedupeSessions, reassignOrphanSessions, fixAbnormalMinutes,
@@ -176,6 +177,15 @@ export function renderMe(ctx) {
         </div>
         <div class="row-val" id="backup-count">${backupCount()} 份</div>
       </button>
+      <button class="row" type="button" data-act="trash" aria-label="记录回收站，共 ${trashStats().count} 条">
+        <div class="row-ic">🗑️</div>
+        <div class="row-main">
+          <div class="row-title">记录回收站</div>
+          <div class="row-sub">误删的记录保留 30 天 · 可随时恢复</div>
+        </div>
+        <div class="row-val">${trashStats().count} 条</div>
+        <div class="row-chev">›</div>
+      </button>
       <button class="row" type="button" data-act="export">
         <div class="row-ic">📤</div>
         <div class="row-main"><div class="row-title">导出数据</div><div class="row-sub">保存为 JSON 备份</div></div>
@@ -215,7 +225,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.26 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.27 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -245,6 +255,8 @@ export function renderMe(ctx) {
     if (bnRow) bnRow.addEventListener('click', () => openBackupNameSheet(ctx));
     const bkRow = root.querySelector('[data-act="backups"]');
     if (bkRow) bkRow.addEventListener('click', () => openBackupsSheet(ctx));
+    const trashRow = root.querySelector('[data-act="trash"]');
+    if (trashRow) trashRow.addEventListener('click', () => openTrashSheet(ctx));
     root.querySelector('[data-act="export"]').addEventListener('click', doExport);
     const ccRow = root.querySelector('[data-act="clear-corrupt"]');
     if (ccRow) ccRow.addEventListener('click', async () => {
@@ -869,6 +881,122 @@ function openBackupsSheet(ctx) {
 
     sheet.querySelector('[data-act="close"]').addEventListener('click', closeSheet);
     sheet.querySelector('[data-act="backup-now"]').addEventListener('click', () => openBackupNameSheet(ctx));
+  });
+}
+
+/* ---------- v1.27：记录回收站 ---------- */
+const TRASH_REASON_TEXT = { delete: '手动删除', 'batch-delete': '批量删除' };
+
+function trashReasonText(reason) {
+  return TRASH_REASON_TEXT[reason] || '删除';
+}
+
+function trashWhen(at) {
+  const ts = Number(at) || Date.now();
+  return monthDayCN(new Date(ts)) + ' ' + hhmm(ts);
+}
+
+function trashSessionName(s) {
+  const subject = getState().subjects.find((x) => x.id === (s && s.subjectId));
+  const subjectName = subject ? subject.name : '未分类';
+  const title = String((s && s.title) || '').trim() || '（无标题）';
+  return subjectName + ' · ' + title;
+}
+
+function trashListHTML() {
+  const list = listTrash();
+  const stats = trashStats();
+  const head = `<p class="mez-backup-count">共 ${stats.batches} 批 · ${stats.count} 条，最多保留 20 批 / 200 条 / 30 天</p>`;
+  if (!list.length) {
+    return head + '<p class="mez-empty">回收站是空的<br>删除的记录会先放到这里</p>';
+  }
+  return head + '<div class="mez-backup-list">' + list.map((item) => {
+    const preview = item.sessions.slice(0, 2).map(trashSessionName).join(' / ')
+      + (item.sessions.length > 2 ? ' 等 ' + item.sessions.length + ' 条' : '');
+    const meta = trashWhen(item.at) + ' · ' + trashReasonText(item.reason)
+      + (item.totalMin ? ' · ' + fmtMinShort(item.totalMin) : '');
+    return `
+      <div class="mez-backup-row mez-trash-row" role="group" aria-label="${esc(item.count + ' 条记录，' + meta)}">
+        <div class="mez-backup-main">
+          <div class="mez-backup-name">${item.count} 条记录</div>
+          <div class="mez-backup-meta">${esc(meta)}</div>
+          <div class="mez-trash-preview">${esc(preview)}</div>
+        </div>
+        <button class="mez-mini primary" type="button" data-restore="${esc(item.id)}"
+          aria-label="恢复这 ${item.count} 条记录">恢复</button>
+        <button class="mez-mini danger" type="button" data-purge="${esc(item.id)}"
+          aria-label="永久删除这 ${item.count} 条记录">删除</button>
+      </div>`;
+  }).join('') + '</div>';
+}
+
+function openTrashSheet(ctx) {
+  openSheet(`
+    <h2 class="sheet-title">记录回收站</h2>
+    <p class="sheet-desc">误删的记录会先放在这里，保留 30 天；恢复后原时间和内容不变。</p>
+    <div id="mez-trash-list">${trashListHTML()}</div>
+    <div class="sheet-actions">
+      <button class="btn" type="button" data-act="close">关闭</button>
+      <button class="btn" type="button" data-act="clear" style="color:var(--danger)">清空回收站</button>
+    </div>
+  `, (sheet) => {
+    const wrap = sheet.querySelector('#mez-trash-list');
+    const redraw = () => { wrap.innerHTML = trashListHTML(); ctx.refresh(); };
+
+    wrap.addEventListener('click', async (e) => {
+      const restoreBtn = e.target.closest('[data-restore]');
+      const purgeBtn = e.target.closest('[data-purge]');
+      if (restoreBtn) {
+        const id = restoreBtn.dataset.restore;
+        const item = listTrash().find((x) => x.id === id);
+        if (!item) { redraw(); toast('这批记录已经不在回收站'); return; }
+        const ok = await confirmSheet({
+          title: '恢复这 ' + item.count + ' 条记录？',
+          desc: '会放回学习记录，原记录时间和内容不变。',
+          okText: '恢复', danger: false,
+        });
+        if (!ok) { openTrashSheet(ctx); return; }
+        const res = restoreTrash(id);
+        haptic();
+        toast(res.restored ? '已恢复 ' + res.restored + ' 条记录' : '这些记录都还在，无需恢复');
+        openTrashSheet(ctx);
+        ctx.refresh();
+        return;
+      }
+      if (purgeBtn) {
+        const id = purgeBtn.dataset.purge;
+        const item = listTrash().find((x) => x.id === id);
+        if (!item) { redraw(); toast('这批记录已经不在回收站'); return; }
+        const ok = await confirmSheet({
+          title: '永久删除这 ' + item.count + ' 条记录？',
+          desc: '删除后不可恢复，也不会再出现在回收站。',
+          okText: '永久删除', danger: true,
+        });
+        if (!ok) { openTrashSheet(ctx); return; }
+        const n = removeTrash(id);
+        haptic();
+        toast('已永久删除 ' + n + ' 条记录');
+        openTrashSheet(ctx);
+        ctx.refresh();
+      }
+    });
+
+    sheet.querySelector('[data-act="close"]').addEventListener('click', closeSheet);
+    sheet.querySelector('[data-act="clear"]').addEventListener('click', async () => {
+      const stats = trashStats();
+      if (!stats.count) { toast('回收站是空的'); return; }
+      const ok = await confirmSheet({
+        title: '清空回收站？',
+        desc: stats.count + ' 条记录会被永久删除，不可恢复。',
+        okText: '清空', danger: true,
+      });
+      if (!ok) { openTrashSheet(ctx); return; }
+      const n = clearTrash();
+      haptic();
+      toast('已清空 ' + n + ' 条记录');
+      openTrashSheet(ctx);
+      ctx.refresh();
+    });
   });
 }
 

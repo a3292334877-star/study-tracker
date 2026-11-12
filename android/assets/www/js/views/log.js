@@ -392,7 +392,7 @@ export function renderLog(ctx) {
       const n = selected.size;
       const ok = await confirmSheet({
         title: `删除这 ${n} 条记录？`,
-        desc: '删除前会自动存一份保护快照，可以在「我的 · 备份快照」里找回。',
+        desc: '删除前会自动存一份保护快照；之后也能在「我的 · 记录回收站」里找回。',
         okText: '删除', danger: true,
       });
       if (!ok) return;

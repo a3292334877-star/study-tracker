@@ -51,9 +51,9 @@ check('首页科目展示与记一笔入口',
     && homeSrc.includes('getSubject'), true);
 check('记一笔按钮与科目样式', planCss.includes('.task-record') && planCss.includes('.plan-subject'), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v31';")
-    && manifestXml.includes('android:versionCode="25"') && manifestXml.includes('android:versionName="1.26"')
-    && meSrc.includes('学习记录 v1.26'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v32';")
+    && manifestXml.includes('android:versionCode="26"') && manifestXml.includes('android:versionName="1.27"')
+    && meSrc.includes('学习记录 v1.27'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

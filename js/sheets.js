@@ -346,7 +346,7 @@ export function openRecordSheet({ id = null, endTs, onChange, onSaved, initial, 
       del.addEventListener('click', async () => {
         const ok = await confirmSheet({
           title: '删除这条记录？',
-          desc: '删掉后 8 秒内还能在底部撤销。',
+          desc: '删掉后 8 秒内还能在底部撤销；超过 8 秒也能在「我的 · 记录回收站」找回。',
           okText: '删除', danger: true,
         });
         if (!ok) { openRecordSheet({ id, onChange, back }); return; }
