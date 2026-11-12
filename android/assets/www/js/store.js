@@ -667,7 +667,71 @@ export function goalOverview(now = new Date()) {
   monthly.endKey = monthEndKey;
   monthly.daysLeft = Math.max(1, monthEnd.getDate() - elapsedMonth + 1);
   daily.dateKey = todayKey;
-  return { daily, weekly, monthly, targets };
+  daily.daysLeft = 1;
+
+  // v1.23 目标助手：用最近 7 天的日均节奏估算整段可完成量，
+  // 再换算出「每天还需多少」和预计缺口；纯派生数据，不落盘。
+  const recent7 = rangeSummary(dateKey(addDays(today, -6)), todayKey).minutes;
+  const pace = recent7 / 7;
+  const withForecast = (m) => {
+    m.needPerDay = m.remaining > 0 ? Math.ceil(m.remaining / Math.max(1, m.daysLeft || 1)) : 0;
+    m.projected = Math.max(m.actual, Math.round(pace * m.totalDays));
+    m.forecastGap = Math.max(0, m.target - m.projected);
+    m.onTrack = m.target > 0 && m.projected >= m.target;
+    return m;
+  };
+  withForecast(daily);
+  withForecast(weekly);
+  withForecast(monthly);
+  return { daily, weekly, monthly, targets, pace: Math.round(pace * 10) / 10 };
+}
+
+/* v1.23 科目周目标总览：本周每个未归档科目的时长 / 条数 / 周目标进度。
+   目标值来自 subject.goalMinWeek，与「科目」页共用同一份数据。 */
+export function subjectGoalOverview(now = new Date()) {
+  const ws = state.settings.weekStart === 0 ? 0 : 1;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = startOfWeek(today, ws);
+  const weekEnd = addDays(weekStart, 6);
+  const startKey = dateKey(weekStart);
+  const endKey = dateKey(weekEnd);
+  const from = parseKey(startKey).getTime();
+  const to = parseKey(endKey).getTime() + 86399999;
+
+  const rows = state.subjects
+    .filter((s) => !s.archived)
+    .map((s) => {
+      const list = state.sessions.filter((x) => x.subjectId === s.id && x.end >= from && x.end <= to);
+      const min = list.reduce((sum, x) => sum + (Number(x.minutes) || 0), 0);
+      const goal = Math.max(0, Math.round(Number(s.goalMinWeek) || 0));
+      const pct = goal > 0 ? Math.min(100, Math.round((min / goal) * 100)) : 0;
+      return {
+        id: s.id,
+        name: s.name,
+        emoji: s.emoji || '📘',
+        color: s.color || COLORS[0],
+        min,
+        count: list.length,
+        goal,
+        pct,
+        met: goal > 0 && min >= goal,
+      };
+    })
+    .sort((a, b) => {
+      const ga = a.goal > 0 ? 1 : 0;
+      const gb = b.goal > 0 ? 1 : 0;
+      if (ga !== gb) return gb - ga;
+      if (ga && gb && b.pct !== a.pct) return b.pct - a.pct;
+      return b.min - a.min || String(a.name).localeCompare(String(b.name));
+    });
+
+  return {
+    rows,
+    met: rows.filter((r) => r.met).length,
+    set: rows.filter((r) => r.goal > 0).length,
+    startKey,
+    endKey,
+  };
 }
 
 /* 最近 N 周的整体周目标达成情况（旧到新） */

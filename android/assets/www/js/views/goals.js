@@ -1,7 +1,11 @@
-/* 学习目标（v1.22）：今日 / 本周 / 本月目标与达标历史 */
-import { getState, goalOverview, goalHistory, dailyGoalHistory, setGoal } from '../store.js';
+/* 学习目标（v1.22）：今日 / 本周 / 本月目标与达标历史
+   v1.23 目标助手：科目周目标总览 + 每日配额 + 按近期节奏的达成预测 */
 import {
-  fmtMinShort, haptic, toast, openSheet, closeSheet, parseKey,
+  getState, goalOverview, goalHistory, dailyGoalHistory, setGoal,
+  subjectGoalOverview, updateSubject,
+} from '../store.js';
+import {
+  esc, fmtMinShort, haptic, toast, openSheet, closeSheet, parseKey,
 } from '../util.js';
 
 const GOAL_CFG = {
@@ -37,15 +41,29 @@ function targetText(minutes, hours) {
   return (Math.round(h * 10) / 10) + ' 小时';
 }
 
-function goalCard(key, icon, title, m, note) {
+function goalCard(key, icon, title, m, note, stateOverride) {
   const has = m.target > 0;
-  const stateText = has ? (m.met ? '已达成' : '还差 ' + fmtMinShort(m.remaining)) : '还没设目标';
+  const stateText = stateOverride || (has ? (m.met ? '已达成' : '还差 ' + fmtMinShort(m.remaining)) : '还没设目标');
   return '<button class="card goal-card" type="button" data-goal-edit="' + key + '" data-goal-card="' + key + '">'
     + '<div class="goal-card-top"><span class="goal-emoji">' + icon + '</span><span class="goal-card-title">' + title + '</span><b class="goal-card-pct">' + (has ? m.pct : 0) + '%</b></div>'
     + bar(has ? m.pct : 0)
     + '<div class="goal-card-sub">' + (has ? fmtMinShort(m.actual) + ' / ' + fmtMinShort(m.target) : '点此设置目标') + '</div>'
     + '<div class="goal-card-note">' + stateText + (note ? ' · ' + note : '') + '</div>'
     + '</button>';
+}
+
+function subjectGoalRow(r) {
+  const has = r.goal > 0;
+  const meta = has
+    ? fmtMinShort(r.min) + ' / ' + fmtMinShort(r.goal) + (r.met ? ' · 已达成' : '')
+    : (r.min > 0 ? '本周 ' + fmtMinShort(r.min) + ' · 未设目标' : '本周还没有记录');
+  return '<button class="goal-sub-row' + (r.met ? ' is-met' : '') + '" type="button" data-subject-goal="' + esc(r.id) + '">'
+    + '<span class="goal-sub-dot" style="background:' + r.color + '">' + r.emoji + '</span>'
+    + '<span class="goal-sub-main">'
+    + '<span class="goal-sub-top"><span class="goal-sub-name">' + esc(r.name) + '</span><b class="goal-sub-val">' + (has ? r.pct + '%' : '设目标') + '</b></span>'
+    + bar(has ? r.pct : 0)
+    + '<span class="goal-sub-meta">' + meta + '</span>'
+    + '</span></button>';
 }
 
 function weekRow(w) {
@@ -71,6 +89,13 @@ export function renderGoals(ctx) {
   const weeks = goalHistory(12);
   const dailyHist = dailyGoalHistory(12);
   const metWeeks = weeks.filter((w) => w.met).length;
+  const subGoals = subjectGoalOverview();
+  const paceText = weekly.target > 0
+    ? (weekly.met
+      ? '本周目标已达成，按当前节奏保持就好'
+      : '每天还需 <b>' + fmtMinShort(weekly.needPerDay) + '</b> · 按近期节奏预计 ' + fmtMinShort(weekly.projected)
+        + (weekly.onTrack ? '，可达成' : '，还差 ' + fmtMinShort(weekly.forecastGap)))
+    : '设一个每周目标，我来帮你算每天需要多少';
 
   const html = `
     <section class="hero goals-hero fade-in">
@@ -84,11 +109,18 @@ export function renderGoals(ctx) {
         <span>${weekRange(weekly.startKey, weekly.endKey)} · 还剩 ${weekly.daysLeft} 天</span>
         <button type="button" class="hero-link" data-goal-edit="weeklyGoalMin">调整 →</button>
       </div>
+      <p class="goal-pace" data-goal-pace>${paceText}</p>
     </section>
 
     <section class="goal-duo fade-in">
-      ${goalCard('dailyGoalMin', '☀️', '今日目标', daily, '完成度 ' + daily.pct + '%')}
-      ${goalCard('monthlyGoalMin', '🗓️', '本月目标', monthly, '本月已过 ' + monthly.elapsedDays + '/' + monthly.totalDays + ' 天')}
+      ${goalCard('dailyGoalMin', '☀️', '今日目标', daily, '完成度 ' + daily.pct + '%', daily.met ? '已达成' : (daily.target > 0 ? '今天还需 ' + fmtMinShort(daily.remaining) : '还没设目标'))}
+      ${goalCard('monthlyGoalMin', '🗓️', '本月目标', monthly, '剩 ' + monthly.daysLeft + ' 天' + (monthly.remaining > 0 ? ' · 每天约 ' + fmtMinShort(monthly.needPerDay) : ' · 已达成'), monthly.met ? '已达成' : (monthly.target > 0 ? '还差 ' + fmtMinShort(monthly.remaining) : '还没设目标'))}
+    </section>
+
+    <section class="card fade-in" data-subject-goals>
+      <div class="card-title"><h3>科目周目标</h3><span class="more" data-subject-goal-summary>${subGoals.set ? subGoals.met + '/' + subGoals.set + ' 达成' : '未设目标'}</span></div>
+      ${subGoals.rows.length ? '<div class="goal-subjects">' + subGoals.rows.map(subjectGoalRow).join('') + '</div>' : '<p class="hint">先在「科目」页添加科目</p>'}
+      <p class="hint mt12">点科目设置每周目标 · 与「科目」页共用同一份数据</p>
     </section>
 
     <section class="card fade-in">
@@ -119,6 +151,9 @@ export function renderGoals(ctx) {
   function mount(root) {
     root.querySelectorAll('[data-goal-edit], [data-goal-set]').forEach((el) => {
       el.addEventListener('click', () => openGoalSheet(el.dataset.goalEdit || el.dataset.goalSet, ctx));
+    });
+    root.querySelectorAll('[data-subject-goal]').forEach((el) => {
+      el.addEventListener('click', () => openSubjectGoalSheet(el.dataset.subjectGoal, ctx));
     });
   }
 
@@ -166,6 +201,48 @@ function openGoalSheet(key, ctx) {
       closeSheet();
       haptic();
       toast('已保存');
+      ctx.refresh();
+    });
+  });
+}
+function openSubjectGoalSheet(id, ctx) {
+  const subject = getState().subjects.find((s) => s.id === id);
+  if (!subject) return;
+  const cur = Math.max(0, Math.round(((Number(subject.goalMinWeek) || 0) / 60) * 10) / 10);
+  openSheet(`
+    <h2 class="sheet-title">${subject.emoji || '📘'} ${esc(subject.name)} · 每周目标</h2>
+    <p class="sheet-desc">这一科每周想累计学习多少小时？填 0 表示不单独设目标。</p>
+    <div class="field">
+      <label for="subject-goal-input">目标（小时）</label>
+      <input class="input" id="subject-goal-input" type="number" min="0" max="80" step="0.5" value="${cur}" />
+    </div>
+    <div class="chips" id="subject-goal-presets">
+      ${[3, 5, 8, 10, 12, 15].map((n) => '<button class="chip" type="button" data-preset="' + n + '">' + n + 'h</button>').join('')}
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" type="button" data-act="cancel">取消</button>
+      <button class="btn primary" type="button" data-act="ok">保存</button>
+    </div>
+  `, (sheet) => {
+    const input = sheet.querySelector('#subject-goal-input');
+    sheet.querySelectorAll('[data-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.preset;
+        sheet.querySelectorAll('[data-preset]').forEach((x) => x.classList.toggle('on', x === btn));
+      });
+    });
+    sheet.querySelector('[data-act="cancel"]').addEventListener('click', closeSheet);
+    sheet.querySelector('[data-act="ok"]').addEventListener('click', () => {
+      const v = Number(input.value);
+      if (!Number.isFinite(v) || v < 0 || v > 80) {
+        toast('请输入 0 - 80 小时');
+        return;
+      }
+      const saved = updateSubject(id, { goalMinWeek: Math.round(v * 60) });
+      if (!saved) { toast('保存失败'); return; }
+      closeSheet();
+      haptic();
+      toast(v > 0 ? '已保存每周目标' : '已取消该科目标');
       ctx.refresh();
     });
   });

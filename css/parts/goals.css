@@ -30,3 +30,17 @@
 .goal-setting-row{padding-top:13px;padding-bottom:13px}
 .goal-setting-row .row-val{font-variant-numeric:tabular-nums}
 @media (max-width:350px){.goal-duo{grid-template-columns:1fr}.goal-week-row{grid-template-columns:38px 1fr 48px 36px}}
+/* v1.23 目标助手 */
+.goal-pace{margin:10px 0 0;font-size:12px;line-height:1.5;color:rgba(255,255,255,.9);font-weight:500}
+.goal-pace b{font-weight:800;color:#fff}
+.goal-subjects{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.goal-sub-row{display:flex;align-items:center;gap:11px;width:100%;padding:11px 0;border:0;border-bottom:1px solid var(--line);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.goal-sub-row:last-child{border-bottom:0}
+.goal-sub-row:active{opacity:.72}
+.goal-sub-dot{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:11px;font-size:16px;flex:0 0 auto}
+.goal-sub-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.goal-sub-top{display:flex;align-items:center;gap:8px}
+.goal-sub-name{flex:1;min-width:0;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goal-sub-val{font-size:12.5px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums}
+.goal-sub-meta{font-size:11px;color:var(--text-3);font-weight:500;line-height:1.4}
+.goal-sub-row.is-met .goal-sub-val{color:var(--primary-2)}

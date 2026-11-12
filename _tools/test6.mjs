@@ -443,7 +443,7 @@ check('我的页：备份快照列表', meBackups && meBackups.open && meBackups
 await evaluate(`(() => { const c = document.querySelector('#sheet [data-act=close]'); if (c) c.click(); })()`);
 await sleep(500);
 const meVersion = await evaluate("document.getElementById('view').textContent");
-check('我的页版本号 v1.22', typeof meVersion === 'string' && meVersion.includes('v1.22'), { text: typeof meVersion === 'string' ? meVersion.slice(-80) : meVersion });
+check('我的页版本号 v1.23', typeof meVersion === 'string' && meVersion.includes('v1.23'), { text: typeof meVersion === 'string' ? meVersion.slice(-80) : meVersion });
 
 /* ---------- 6. 无报错 + 输出 ---------- */
 const errors = logs.filter((l) => l.type === 'exception' || l.type === 'error' || l.type === 'log:error');
