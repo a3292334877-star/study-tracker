@@ -35,8 +35,8 @@ check('me.js 体检入口与弹层',
   meSrc.includes('data-act="audit"') && meSrc.includes('function openAuditSheet')
     && meSrc.includes('function auditSummary') && meSrc.includes('学习记录 v1.30'), true);
 check('版本：sw v28 / manifest 22-1.23',
-  swSrc.includes("const CACHE = 'study-tracker-v35';")
-    && manifestXml.includes('android:versionCode="29"') && manifestXml.includes('android:versionName="1.30"'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v36';")
+    && manifestXml.includes('android:versionCode="30"') && manifestXml.includes('android:versionName="1.30.1"'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

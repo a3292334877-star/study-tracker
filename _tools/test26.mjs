@@ -49,8 +49,8 @@ check('目标日历样式',
     && calendarCss.includes('.cal-view-toggle')
     && calendarCss.includes('.cal-goal-stat'), true);
 check('版本：sw v30 / manifest 24-1.25 / 页脚 v1.25',
-  swSrc.includes("const CACHE = 'study-tracker-v35';")
-    && manifestXml.includes('android:versionCode="29"') && manifestXml.includes('android:versionName="1.30"')
+  swSrc.includes("const CACHE = 'study-tracker-v36';")
+    && manifestXml.includes('android:versionCode="30"') && manifestXml.includes('android:versionName="1.30.1"')
     && meSrc.includes('学习记录 v1.30'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -55,8 +55,8 @@ check('样式与 SW 资产登记',
     && swSrc.includes("./css/parts/memory.css")
     && swSrc.includes("./js/views/memory.js"), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v35';")
-    && manifestXml.includes('android:versionCode="29"') && manifestXml.includes('android:versionName="1.30"')
+  swSrc.includes("const CACHE = 'study-tracker-v36';")
+    && manifestXml.includes('android:versionCode="30"') && manifestXml.includes('android:versionName="1.30.1"')
     && meSrc.includes('学习记录 v1.30'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));

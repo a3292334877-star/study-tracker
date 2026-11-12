@@ -47,9 +47,9 @@ check('我的页回收站入口与弹层',
     && meSrc.includes('data-purge'), true);
 check('回收站样式与版本',
   meCss.includes('.mez-trash-preview')
-    && swSrc.includes("const CACHE = 'study-tracker-v35';")
-    && manifestXml.includes('android:versionCode="29"')
-    && manifestXml.includes('android:versionName="1.30"')
+    && swSrc.includes("const CACHE = 'study-tracker-v36';")
+    && manifestXml.includes('android:versionCode="30"')
+    && manifestXml.includes('android:versionName="1.30.1"')
     && meSrc.includes('学习记录 v1.30'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));

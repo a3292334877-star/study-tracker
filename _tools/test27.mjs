@@ -60,8 +60,8 @@ check('月度报告样式',
     && monthlyCss.includes('.is-goal-met')
     && monthlyCss.includes('.month-tags'), true);
 check('版本：sw v34 / manifest 28-1.29 / 页脚 v1.30',
-  swSrc.includes("const CACHE = 'study-tracker-v35';")
-    && manifestXml.includes('android:versionCode="29"') && manifestXml.includes('android:versionName="1.30"')
+  swSrc.includes("const CACHE = 'study-tracker-v36';")
+    && manifestXml.includes('android:versionCode="30"') && manifestXml.includes('android:versionName="1.30.1"')
     && meSrc.includes('学习记录 v1.30'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));

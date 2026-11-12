@@ -39,7 +39,7 @@ const pkg = {
   preBatchLabel: /删除前保护/.test(read('js/store.js')),
   saveFileBridge: /public void saveFile\(/.test(read('android/java/com/xuexijilu/MainActivity.java')),
 };
-check('v1.24 版本一致性', pkg.sw === 'study-tracker-v35' && pkg.versionCode === '29' && pkg.versionName === '1.30' && pkg.meVersion && pkg.swCsv, pkg);
+check('v1.24 版本一致性', pkg.sw === 'study-tracker-v36' && pkg.versionCode === '30' && pkg.versionName === '1.30.1' && pkg.meVersion && pkg.swCsv, pkg);
 check('PWA shortcuts 三入口', pkg.shortcuts === 3, pkg.shortcuts);
 check('删除前保护 + saveFile 桥就绪', pkg.preBatchLabel && pkg.saveFileBridge, { preBatchLabel: pkg.preBatchLabel, saveFileBridge: pkg.saveFileBridge });
 
@@ -202,7 +202,7 @@ check('统计三卡（趋势/时段/周目标）', stats.trend && stats.trendW &
 const mfetch = await evaluate(`(async () => {
   const m = await (await fetch('/manifest.webmanifest')).json();
   const sw = await (await fetch('/sw.js')).text();
-  return { shortcuts: m.shortcuts.map(s => s.name), swV14: sw.includes("study-tracker-v35"), swCsv: sw.includes('./js/csv.js') };
+  return { shortcuts: m.shortcuts.map(s => s.name), swV14: sw.includes("study-tracker-v36"), swCsv: sw.includes('./js/csv.js') };
 })()`, true);
 check('manifest shortcuts 内容', Array.isArray(mfetch.shortcuts) && mfetch.shortcuts.length === 3, mfetch.shortcuts);
 check('sw v28 + 预载 csv.js', mfetch.swV14 && mfetch.swCsv, mfetch);
