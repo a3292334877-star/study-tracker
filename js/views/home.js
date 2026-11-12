@@ -1,6 +1,6 @@
 /* 今日视图：今天学了什么 + 今天的任务 */
 import {
-  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, setTodoDone, removeTodo, lastNDays, todosOfDay, repeatLabel, getSubject, reviewStats,
+  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, setTodoDone, removeTodo, lastNDays, todosOfDay, repeatLabel, getSubject, reviewStats, goalOverview,
 } from '../store.js';
 import {
   esc, fmtMin, fmtMinShort, dateKey, weekdayCN, monthDayCN, haptic,
@@ -32,6 +32,10 @@ export function renderHome(ctx) {
   const todos = todosOfDay(todayKey);
   const doneTodos = todos.filter((t) => t.done).length;
   const mem = reviewStats();
+  const weeklyGoal = goalOverview().weekly;
+  const weekGoalSub = weeklyGoal.target > 0
+    ? `${fmtMinShort(weeklyGoal.actual)} / ${fmtMinShort(weeklyGoal.target)} · ${weeklyGoal.met ? '已达成' : '还差 ' + fmtMinShort(weeklyGoal.remaining)}`
+    : '还没设目标 · 点此设置';
 
   const sub = `${weekdayCN(now)} · ${monthDayCN(now)}`;
 
@@ -52,6 +56,17 @@ export function renderHome(ctx) {
       <div class="stat"><b>${fmtMin(weekMin).value}<small>${fmtMin(weekMin).unit}</small></b><span>近 7 天</span></div>
       <div class="stat"><b>${sessions.length}<small>条</small></b><span>今日记录</span></div>
     </div>
+
+    <section class="card fade-in goal-entry" style="padding:0">
+      <button class="row" type="button" data-go-goals style="padding:14px 16px">
+        <div class="row-ic" style="background:var(--primary-soft);color:var(--primary)">🏁</div>
+        <div class="row-main">
+          <div class="row-title">本周目标</div>
+          <div class="row-sub">${weekGoalSub}</div>
+        </div>
+        <div class="row-val" style="color:var(--primary)">${weeklyGoal.target > 0 ? weeklyGoal.pct + '%' : '›'}</div>
+      </button>
+    </section>
 
     <section class="card fade-in memory-entry" style="padding:0">
       <button class="row" type="button" data-go-memory style="padding:14px 16px">
@@ -116,6 +131,8 @@ export function renderHome(ctx) {
     });
     const memBtn = root.querySelector('[data-go-memory]');
     if (memBtn) memBtn.addEventListener('click', () => { haptic(); ctx.go('#/memory'); });
+    const goalBtn = root.querySelector('[data-go-goals]');
+    if (goalBtn) goalBtn.addEventListener('click', () => { haptic(); ctx.go('#/goals'); });
     root.querySelectorAll('[data-act="record-todo"]').forEach((el) => {
       el.addEventListener('click', () => {
         const row = el.closest('[data-todo]');

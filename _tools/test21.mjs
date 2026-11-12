@@ -1,6 +1,6 @@
 /* test21：v1.20 全新应用图标
    静态检查：PWA 图标尺寸、Android 5 档 mipmap、432×432 自适应前景、adaptive-icon 资源、
-   版本一致性（manifest 19/1.20、sw v26、me 页脚 v1.21）、README v1.20 段落。
+   版本一致性（manifest 19/1.20、sw v27、me 页脚 v1.22）、README v1.20 段落。
    用法：node _tools/test21.mjs <ROOT> <OUT>   （纯静态，不需要 Edge） */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -54,18 +54,18 @@ check('adaptive-icon 引用渐变背景 + 前景',
 // 6) manifest 版本与 launcher 图标
 const manifest = read('android/AndroidManifest.xml');
 check('manifest 19/1.20 + @mipmap/ic_launcher',
-  manifest.includes('android:versionCode="20"') && manifest.includes('android:versionName="1.21"')
+  manifest.includes('android:versionCode="21"') && manifest.includes('android:versionName="1.22"')
     && manifest.includes('android:icon="@mipmap/ic_launcher"')
     && manifest.includes('android:roundIcon="@mipmap/ic_launcher"'), true);
 
 // 7) sw 版本 + 预载图标
 const sw = read('sw.js');
 const me = read('js/views/me.js');
-check('sw v26 预载三个图标 / 页脚 v1.21',
-  sw.includes("const CACHE = 'study-tracker-v26';")
+check('sw v27 预载三个图标 / 页脚 v1.22',
+  sw.includes("const CACHE = 'study-tracker-v27';")
     && sw.includes("./icon.svg") && sw.includes("./icon-180.png")
     && sw.includes("./icon-192.png") && sw.includes("./icon-512.png")
-    && me.includes('学习记录 v1.21'), true);
+    && me.includes('学习记录 v1.22'), true);
 
 // 8) README v1.20
 const readme = read('README.md');

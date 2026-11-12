@@ -34,6 +34,8 @@ const defaultState = () => ({
   settings: {
     theme: 'auto',
     dailyGoalMin: 120,
+    weeklyGoalMin: 600,
+    monthlyGoalMin: 2400,
     weekStart: 1,
     pomodoroMin: 25,
     pomodoroCycle: false,
@@ -590,6 +592,132 @@ export function rangeSummary(fromKey, toKey) {
   };
 }
 /* 最佳单日 { key, minutes, count } | null */
+/* ---------- 学习目标（v1.22） ----------
+   每日目标原先只在首页显示；这里补上「每周 / 每月总目标」与达标历史，
+   只读 settings，不改动任何记录。 */
+export const GOAL_LIMITS = {
+  dailyGoalMin: [10, 720],
+  weeklyGoalMin: [0, 10080],
+  monthlyGoalMin: [0, 44640],
+};
+
+export function goalTargets() {
+  const s = state.settings;
+  return {
+    daily: Math.max(10, Math.round(Number(s.dailyGoalMin) || 120)),
+    weekly: Math.max(0, Math.round(Number(s.weeklyGoalMin) || 0)),
+    monthly: Math.max(0, Math.round(Number(s.monthlyGoalMin) || 0)),
+  };
+}
+
+export function setGoal(key, value) {
+  const bounds = GOAL_LIMITS[key];
+  if (!bounds) return null;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return null;
+  const next = Math.max(bounds[0], Math.min(bounds[1], n));
+  state.settings[key] = next;
+  commit();
+  return next;
+}
+
+function goalMetric(actual, target, elapsedDays, totalDays) {
+  const a = Math.max(0, Math.round(Number(actual) || 0));
+  const t = Math.max(0, Math.round(Number(target) || 0));
+  const pct = t > 0 ? Math.min(100, Math.round((a / t) * 100)) : 0;
+  const elapsed = Math.max(0, Math.min(totalDays, Math.round(Number(elapsedDays) || 0)));
+  return {
+    actual: a,
+    target: t,
+    pct,
+    met: t > 0 && a >= t,
+    remaining: Math.max(0, t - a),
+    elapsedDays: elapsed,
+    totalDays,
+    expected: t > 0 ? Math.round(t * (elapsed / totalDays)) : 0,
+  };
+}
+
+/* 今日 / 本周 / 本月目标进度；周起始日跟随设置 */
+export function goalOverview(now = new Date()) {
+  const targets = goalTargets();
+  const ws = state.settings.weekStart === 0 ? 0 : 1;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = startOfWeek(today, ws);
+  const weekEnd = addDays(weekStart, 6);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const elapsedWeek = Math.round((today - weekStart) / 86400000) + 1;
+  const elapsedMonth = today.getDate();
+
+  const todayKey = dateKey(today);
+  const weekStartKey = dateKey(weekStart);
+  const weekEndKey = dateKey(weekEnd);
+  const monthStartKey = dateKey(monthStart);
+  const monthEndKey = dateKey(monthEnd);
+
+  const daily = goalMetric(rangeSummary(todayKey, todayKey).minutes, targets.daily, 1, 1);
+  const weekly = goalMetric(rangeSummary(weekStartKey, weekEndKey).minutes, targets.weekly, elapsedWeek, 7);
+  const monthly = goalMetric(rangeSummary(monthStartKey, monthEndKey).minutes, targets.monthly, elapsedMonth, monthEnd.getDate());
+
+  weekly.startKey = weekStartKey;
+  weekly.endKey = weekEndKey;
+  weekly.daysLeft = Math.max(1, 7 - elapsedWeek + 1);
+  monthly.startKey = monthStartKey;
+  monthly.endKey = monthEndKey;
+  monthly.daysLeft = Math.max(1, monthEnd.getDate() - elapsedMonth + 1);
+  daily.dateKey = todayKey;
+  return { daily, weekly, monthly, targets };
+}
+
+/* 最近 N 周的整体周目标达成情况（旧到新） */
+export function goalHistory(weeks = 12) {
+  const target = goalTargets().weekly;
+  const ws = state.settings.weekStart === 0 ? 0 : 1;
+  const thisStart = startOfWeek(new Date(), ws);
+  const rows = [];
+  for (let i = weeks - 1; i >= 0; i -= 1) {
+    const start = addDays(thisStart, -7 * i);
+    const end = addDays(start, 6);
+    const actual = rangeSummary(dateKey(start), dateKey(end)).minutes;
+    const pct = target > 0 ? Math.min(100, Math.round((actual / target) * 100)) : 0;
+    rows.push({
+      startKey: dateKey(start),
+      endKey: dateKey(end),
+      label: (start.getMonth() + 1) + '/' + start.getDate(),
+      actual,
+      target,
+      pct,
+      met: target > 0 && actual >= target,
+      current: i === 0,
+    });
+  }
+  return rows;
+}
+
+/* 每日目标达标热力：从 N 周前的周首日到今天，返回 weeks*7 格 */
+export function dailyGoalHistory(weeks = 12) {
+  const target = goalTargets().daily;
+  const ws = state.settings.weekStart === 0 ? 0 : 1;
+  const start = addDays(startOfWeek(new Date(), ws), -7 * (weeks - 1));
+  const todayKey = dateKey(new Date());
+  const cells = [];
+  let hits = 0;
+  for (let i = 0; i < weeks * 7; i += 1) {
+    const d = addDays(start, i);
+    const key = dateKey(d);
+    const minutes = minutesOfDay(key);
+    const future = key > todayKey;
+    let level = 0;
+    if (!future && minutes > 0) {
+      if (minutes >= target) { level = 3; hits += 1; }
+      else if (minutes >= target * 0.5) level = 2;
+      else level = 1;
+    }
+    cells.push({ key, minutes, future, level, met: !future && target > 0 && minutes >= target });
+  }
+  return { target, cells, hits, weeks };
+}
 export function bestDay() {
   let best = null;
   dayMinutesMap().forEach((minutes, key) => {

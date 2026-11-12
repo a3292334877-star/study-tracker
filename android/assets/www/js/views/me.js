@@ -5,7 +5,7 @@ import {
   clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
   tagStats, renameTag, removeTag, importSessions,
   auditData, dedupeSessions, reassignOrphanSessions, fixAbnormalMinutes,
-  achievementStats, planWeek,
+  achievementStats, planWeek, goalOverview,
 } from '../store.js';
 import {
   applyTheme, openSheet, closeSheet, toast, fmtMinShort, dateKey,
@@ -30,6 +30,7 @@ export function renderMe(ctx) {
   const auditInfo = auditData();
   const achieve = achievementStats();
   const weekPlan = planWeek(dateKey(new Date()));
+  const goals = goalOverview();
 
   const html = `
     <section class="card fade-in" style="display:flex;align-items:center;gap:14px">
@@ -50,6 +51,15 @@ export function renderMe(ctx) {
         </div>
         <div class="row-val">${state.settings.dailyGoalMin} 分</div>
       </div>
+      <button class="row" type="button" data-act="goals">
+        <div class="row-ic">🏁</div>
+        <div class="row-main">
+          <div class="row-title">学习目标</div>
+          <div class="row-sub">今日 / 本周 / 本月目标与达标记录</div>
+        </div>
+        <div class="row-val">${goals.weekly.pct}%</div>
+        <div class="row-chev">›</div>
+      </button>
       <div class="row" data-set="pomodoroMin">
         <div class="row-ic">⏱️</div>
         <div class="row-main">
@@ -205,7 +215,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.21 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.22 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -221,6 +231,8 @@ export function renderMe(ctx) {
     root.querySelector('[data-act="subjects"]').addEventListener('click', () => ctx.go('#/subjects'));
     root.querySelector('[data-act="timer"]').addEventListener('click', () => ctx.go('#/timer'));
     root.querySelector('[data-act="memory"]').addEventListener('click', () => ctx.go('#/memory'));
+    const goalsRow = root.querySelector('[data-act="goals"]');
+    if (goalsRow) goalsRow.addEventListener('click', () => ctx.go('#/goals'));
     const planRow = root.querySelector('[data-act="plan"]');
     if (planRow) planRow.addEventListener('click', () => ctx.go('#/plan'));
     const achRow = root.querySelector('[data-act="achievements"]');

@@ -55,10 +55,10 @@ check('首页与我的计划入口',
   homeSrc.includes('todosOfDay')
     && homeSrc.includes('data-act="plan"')
     && meSrc.includes('data-act="plan"'), true);
-check('版本：sw v26 / manifest 20-1.21 / 页脚 v1.21 / 资源',
-  swSrc.includes("const CACHE = 'study-tracker-v26';")
-    && manifestXml.includes('android:versionCode="20"') && manifestXml.includes('android:versionName="1.21"')
-    && meSrc.includes('学习记录 v1.21')
+check('版本：sw v27 / manifest 21-1.22 / 页脚 v1.22 / 资源',
+  swSrc.includes("const CACHE = 'study-tracker-v27';")
+    && manifestXml.includes('android:versionCode="21"') && manifestXml.includes('android:versionName="1.22"')
+    && meSrc.includes('学习记录 v1.22')
     && swSrc.includes('./js/views/plan.js') && swSrc.includes('./css/parts/plan.css')
     && indexHtml.includes('css/parts/plan.css'), true);
 
