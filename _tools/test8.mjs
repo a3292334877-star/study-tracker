@@ -1,5 +1,5 @@
 /* test8：v1.7 数据安全收尾 + 统计增强 + 批量操作 / CSV
-   1) 版本一致性：SW v25 / APK versionCode 19 (1.20) / me 页脚 v1.23 / sw 预载 js/csv.js / manifest shortcuts
+   1) 版本一致性：SW v25 / APK versionCode 19 (1.20) / me 页脚 v1.24 / sw 预载 js/csv.js / manifest shortcuts
    2) store：损坏留档 listCorrupt / clearCorrupt / estimateStorageBytes / removeSessions 一次删多条+删除前快照
    3) csv.js 单元：BOM、行数、逗号与引号转义、文件名
    4) 我的页：存储用量行、清除损坏留档行（有留档才出现，点了就清）、页脚版本
@@ -34,12 +34,12 @@ const pkg = {
   swCsv: swSrc.includes("'./js/csv.js'"),
   versionCode: (manifestXml.match(/android:versionCode="(\d+)"/) || [])[1] || '',
   versionName: (manifestXml.match(/android:versionName="([^"]+)"/) || [])[1] || '',
-  meVersion: /学习记录 v1\.23/.test(meSrc),
+  meVersion: /学习记录 v1\.24/.test(meSrc),
   shortcuts: (manifestSrc.match(/"shortcuts"/) ? JSON.parse(manifestSrc).shortcuts.length : 0),
   preBatchLabel: /删除前保护/.test(read('js/store.js')),
   saveFileBridge: /public void saveFile\(/.test(read('android/java/com/xuexijilu/MainActivity.java')),
 };
-check('v1.23 版本一致性', pkg.sw === 'study-tracker-v28' && pkg.versionCode === '22' && pkg.versionName === '1.23' && pkg.meVersion && pkg.swCsv, pkg);
+check('v1.24 版本一致性', pkg.sw === 'study-tracker-v29' && pkg.versionCode === '23' && pkg.versionName === '1.24' && pkg.meVersion && pkg.swCsv, pkg);
 check('PWA shortcuts 三入口', pkg.shortcuts === 3, pkg.shortcuts);
 check('删除前保护 + saveFile 桥就绪', pkg.preBatchLabel && pkg.saveFileBridge, { preBatchLabel: pkg.preBatchLabel, saveFileBridge: pkg.saveFileBridge });
 
@@ -104,10 +104,10 @@ await evaluate("location.hash='#/me'"); await sleep(900);
 const meRows = await evaluate(`(() => ({
   usageText: (document.querySelector('#storage-usage-row .row-sub')||{}).textContent || '',
   usageVal: (document.querySelector('#storage-usage-val')||{}).textContent || '',
-  footer: (document.querySelector('.me-footer')||document.body).textContent.includes('学习记录 v1.23'),
+  footer: (document.querySelector('.me-footer')||document.body).textContent.includes('学习记录 v1.24'),
 }))()`);
 check('存储用量行就绪', meRows.usageText.includes('本项目数据占用') && meRows.usageVal.length > 0, meRows);
-check('页脚 v1.23', meRows.footer === true, meRows.footer);
+check('页脚 v1.24', meRows.footer === true, meRows.footer);
 
 // 塞一份假损坏留档 → 清除损坏留档行应出现 → 点击后清掉
 const corruptProbe = await evaluate(`(async () => {
@@ -202,7 +202,7 @@ check('统计三卡（趋势/时段/周目标）', stats.trend && stats.trendW &
 const mfetch = await evaluate(`(async () => {
   const m = await (await fetch('/manifest.webmanifest')).json();
   const sw = await (await fetch('/sw.js')).text();
-  return { shortcuts: m.shortcuts.map(s => s.name), swV14: sw.includes("study-tracker-v28"), swCsv: sw.includes('./js/csv.js') };
+  return { shortcuts: m.shortcuts.map(s => s.name), swV14: sw.includes("study-tracker-v29"), swCsv: sw.includes('./js/csv.js') };
 })()`, true);
 check('manifest shortcuts 内容', Array.isArray(mfetch.shortcuts) && mfetch.shortcuts.length === 3, mfetch.shortcuts);
 check('sw v28 + 预载 csv.js', mfetch.swV14 && mfetch.swCsv, mfetch);

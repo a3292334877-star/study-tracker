@@ -3,7 +3,7 @@
    2) res：xml/widget_today（updatePeriodMs）+ drawable/widget_bg + layout/widget_today（三个 id）
    3) TodayWidgetProvider.java：PREFS 'widget' / 日期守卫 / updateAll / push / 点击拉起
    4) MainActivity：updateWidget 桥 + onCreate 初始化
-   5) app.js：pushWidget + 订阅/启动时推送；sw v28；me 页脚 v1.23
+   5) app.js：pushWidget + 订阅/启动时推送；sw v28；me 页脚 v1.24
    6) 浏览器（mock window.AndroidApp）：启动即推送一次（整数字符串）→ addSession 加 25 分钟
       → 推送次数增加且今日分钟数 +25 → 无异常
    用法：node _tools/test10.mjs <ROOT> <OUT> <EDGE>   （可选 ST_PORT / ST_DBG，默认 8130 / 9366） */
@@ -36,8 +36,8 @@ const xmlMeta = read('android/res/xml/widget_today.xml');
 const bgXml = read('android/res/drawable/widget_bg.xml');
 const layoutXml = read('android/res/layout/widget_today.xml');
 
-check('manifest v1.21 + widget receiver', manifestXml.includes('android:versionCode="22"')
-  && manifestXml.includes('android:versionName="1.23"')
+check('manifest v1.21 + widget receiver', manifestXml.includes('android:versionCode="23"')
+  && manifestXml.includes('android:versionName="1.24"')
   && manifestXml.includes('.TodayWidgetProvider')
   && manifestXml.includes('android.appwidget.action.APPWIDGET_UPDATE')
   && manifestXml.includes('@xml/widget_today'), true);
@@ -55,7 +55,7 @@ check('MainActivity 桥就绪', mainSrc.includes('public void updateWidget(final
 check('app.js 推送钩子', appSrc.includes('minutesOfDay, streak') && appSrc.includes('dateKey')
   && appSrc.includes('function pushWidget()') && appSrc.includes("bridge.updateWidget(String(minutesOfDay(dateKey(new Date()))), String(streak()))")
   && (appSrc.match(/pushWidget\(\);/g) || []).length >= 2, true);
-check('sw v28 + 页脚 v1.23', swSrc.includes("const CACHE = 'study-tracker-v28';") && meSrc.includes('学习记录 v1.23'), true);
+check('sw v28 + 页脚 v1.24', swSrc.includes("const CACHE = 'study-tracker-v29';") && meSrc.includes('学习记录 v1.24'), true);
 
 /* ---------- 2. 启动静态服务器 + Edge（注入 mock AndroidApp） ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

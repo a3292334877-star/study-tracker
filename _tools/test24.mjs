@@ -40,10 +40,10 @@ check('目标页 v1.23 结构与样式',
     && goalsSrc.includes('subjectGoalOverview')
     && goalsCss.includes('.goal-pace')
     && goalsCss.includes('.goal-sub-row'), true);
-check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.23',
-  swSrc.includes("const CACHE = 'study-tracker-v28';")
-    && manifestXml.includes('android:versionCode="22"') && manifestXml.includes('android:versionName="1.23"')
-    && meSrc.includes('学习记录 v1.23'), true);
+check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
+  swSrc.includes("const CACHE = 'study-tracker-v29';")
+    && manifestXml.includes('android:versionCode="23"') && manifestXml.includes('android:versionName="1.24"')
+    && meSrc.includes('学习记录 v1.24'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
@@ -119,8 +119,8 @@ check('改数学周目标为 2h 后保存并刷新', saved && saved.goal === 120
 
 await evaluate('location.hash = "#/me"; "ok"');
 await sleep(900);
-const me = await evaluate("(() => ({ entry: !!document.querySelector('[data-act=\"goals\"]'), footer: document.body.innerText.indexOf('学习记录 v1.23') >= 0 }))()");
-check('我的页有学习目标入口与 v1.23 页脚', me && me.entry && me.footer, me);
+const me = await evaluate("(() => ({ entry: !!document.querySelector('[data-act=\"goals\"]'), footer: document.body.innerText.indexOf('学习记录 v1.24') >= 0 }))()");
+check('我的页有学习目标入口与 v1.24 页脚', me && me.entry && me.footer, me);
 
 check('无未捕获异常', logs.length === 0, logs.slice(0, 5));
 ws.close(); edge.kill(); server.kill();

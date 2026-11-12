@@ -2,7 +2,7 @@
    v1.23 目标助手：科目周目标总览 + 每日配额 + 按近期节奏的达成预测 */
 import {
   getState, goalOverview, goalHistory, dailyGoalHistory, setGoal,
-  subjectGoalOverview, updateSubject,
+  subjectGoalOverview, updateSubject, goalPlanTasks, applyGoalPlan,
 } from '../store.js';
 import {
   esc, fmtMinShort, haptic, toast, openSheet, closeSheet, parseKey,
@@ -90,6 +90,7 @@ export function renderGoals(ctx) {
   const dailyHist = dailyGoalHistory(12);
   const metWeeks = weeks.filter((w) => w.met).length;
   const subGoals = subjectGoalOverview();
+  const plan = goalPlanTasks();
   const paceText = weekly.target > 0
     ? (weekly.met
       ? '本周目标已达成，按当前节奏保持就好'
@@ -121,6 +122,17 @@ export function renderGoals(ctx) {
       <div class="card-title"><h3>科目周目标</h3><span class="more" data-subject-goal-summary>${subGoals.set ? subGoals.met + '/' + subGoals.set + ' 达成' : '未设目标'}</span></div>
       ${subGoals.rows.length ? '<div class="goal-subjects">' + subGoals.rows.map(subjectGoalRow).join('') + '</div>' : '<p class="hint">先在「科目」页添加科目</p>'}
       <p class="hint mt12">点科目设置每周目标 · 与「科目」页共用同一份数据</p>
+    </section>
+
+    <section class="card fade-in" data-goal-plan-card>
+      <div class="card-title"><h3>目标补齐计划</h3><span class="more">${plan.subjects.length ? plan.daysLeft + ' 天 · ' + plan.tasks.length + ' 个任务' : '暂无缺口'}</span></div>
+      ${plan.subjects.length
+        ? `<p class="hint">按本周各科目标，还差 ${fmtMinShort(plan.total)}，可拆成未来 ${plan.daysLeft} 天的每日任务。</p>
+          <div class="goal-plan-list">
+            ${plan.subjects.map((s) => '<div class="goal-plan-row"><span class="goal-plan-dot" style="background:' + s.color + '">' + s.emoji + '</span><span class="goal-plan-name">' + esc(s.name) + '</span><span class="goal-plan-gap">还差 ' + fmtMinShort(s.remaining) + ' · 每天 ' + fmtMinShort(Math.ceil(s.remaining / plan.daysLeft)) + '</span></div>').join('')}
+          </div>
+          <button class="btn primary block mt12" type="button" data-act="goal-plan">生成每日计划</button>`
+        : '<p class="hint">本周目标都已达成，或还没有设置科目周目标。</p>'}
     </section>
 
     <section class="card fade-in">
@@ -155,6 +167,8 @@ export function renderGoals(ctx) {
     root.querySelectorAll('[data-subject-goal]').forEach((el) => {
       el.addEventListener('click', () => openSubjectGoalSheet(el.dataset.subjectGoal, ctx));
     });
+    const planBtn = root.querySelector('[data-act="goal-plan"]');
+    if (planBtn) planBtn.addEventListener('click', () => openGoalPlanSheet(ctx));
   }
 
   return { title: '学习目标', sub: '看见每天的积累', html, mount };
@@ -243,6 +257,43 @@ function openSubjectGoalSheet(id, ctx) {
       closeSheet();
       haptic();
       toast(v > 0 ? '已保存每周目标' : '已取消该科目标');
+      ctx.refresh();
+    });
+  });
+}
+
+/* v1.24 目标补齐计划预览：按天列出即将加入的任务，确认后一次写入 todos */
+function openGoalPlanSheet(ctx) {
+  const plan = goalPlanTasks();
+  if (!plan.tasks.length) { toast('当前没有需要补齐的目标'); return; }
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const groups = plan.dates
+    .map((date, idx) => ({ date, idx, tasks: plan.tasks.filter((t) => t.date === date) }))
+    .filter((g) => g.tasks.length > 0);
+  const total = plan.tasks.reduce((sum, t) => sum + t.minutes, 0);
+  openSheet(`
+    <h2 class="sheet-title">生成目标计划</h2>
+    <p class="sheet-desc">共 ${plan.tasks.length} 个任务 · ${fmtMinShort(total)} · 未来 ${plan.daysLeft} 天，加入后可在「计划」页逐项打勾。</p>
+    <div class="goal-plan-days">
+      ${groups.map((g) => {
+        const d = parseKey(g.date);
+        const label = (g.idx === 0 ? '今天 · ' : '') + weekdays[d.getDay()] + ' ' + (d.getMonth() + 1) + '/' + d.getDate();
+        return '<div class="goal-plan-day"><div class="goal-plan-day-head">' + label + ' · ' + g.tasks.reduce((s, t) => s + t.minutes, 0) + ' 分钟</div>'
+          + g.tasks.map((t) => '<div class="goal-plan-task">' + esc(t.subjectName) + ' · ' + t.minutes + ' 分钟</div>').join('')
+          + '</div>';
+      }).join('')}
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" type="button" data-act="goal-plan-cancel">取消</button>
+      <button class="btn primary" type="button" data-act="goal-plan-ok">加入计划</button>
+    </div>
+  `, (sheet) => {
+    sheet.querySelector('[data-act="goal-plan-cancel"]').addEventListener('click', closeSheet);
+    sheet.querySelector('[data-act="goal-plan-ok"]').addEventListener('click', () => {
+      const res = applyGoalPlan();
+      closeSheet();
+      haptic();
+      toast(res.added ? '已加入 ' + res.added + ' 个计划任务' : '这些任务已经在计划里了');
       ctx.refresh();
     });
   });

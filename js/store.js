@@ -734,6 +734,80 @@ export function subjectGoalOverview(now = new Date()) {
   };
 }
 
+/* v1.24 目标补齐计划：按本周各科目标剩余量，均摊到今天到周日，生成每日任务建议。
+   只做派生计算、不落盘；applyGoalPlan 才真正写入 todos。 */
+export function goalPlanTasks(now = new Date()) {
+  const ws = state.settings.weekStart === 0 ? 0 : 1;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = startOfWeek(today, ws);
+  const weekEnd = addDays(weekStart, 6);
+  const elapsed = Math.max(1, Math.min(7, Math.round((today - weekStart) / 86400000) + 1));
+  const daysLeft = 7 - elapsed + 1;
+  const dates = Array.from({ length: daysLeft }, (_, i) => dateKey(addDays(today, i)));
+  const sub = subjectGoalOverview(now);
+  const subjects = sub.rows
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      emoji: r.emoji,
+      color: r.color,
+      goal: Math.max(0, Number(r.goal) || 0),
+      min: Math.max(0, Number(r.min) || 0),
+      remaining: Math.max(0, Math.round(Number(r.goal) || 0) - Math.round(Number(r.min) || 0)),
+    }))
+    .filter((r) => r.goal > 0 && r.remaining > 0);
+  const tasks = [];
+  subjects.forEach((s) => {
+    const base = Math.floor(s.remaining / daysLeft);
+    const extra = s.remaining - base * daysLeft;
+    dates.forEach((d, i) => {
+      const minutes = base + (i < extra ? 1 : 0);
+      if (minutes <= 0) return;
+      tasks.push({
+        date: d,
+        subjectId: s.id,
+        subjectName: s.name,
+        minutes,
+        text: s.name + ' · ' + minutes + ' 分钟',
+      });
+    });
+  });
+  return {
+    startKey: dateKey(weekStart),
+    endKey: dateKey(weekEnd),
+    daysLeft,
+    dates,
+    subjects,
+    tasks,
+    total: tasks.reduce((sum, t) => sum + t.minutes, 0),
+  };
+}
+
+/* 把目标补齐计划的每日任务写入计划；同一天同名任务自动跳过，避免重复点按钮 */
+export function applyGoalPlan(now = new Date()) {
+  const plan = goalPlanTasks(now);
+  const seen = new Set(state.todos.map((t) => todoDate(t) + '|' + String(t.text || '').trim()));
+  const added = [];
+  plan.tasks.forEach((task) => {
+    const key = task.date + '|' + task.text;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const todo = {
+      id: uid(),
+      text: task.text,
+      done: false,
+      createdAt: Date.now(),
+      date: task.date,
+      repeat: 'none',
+      subjectId: task.subjectId,
+    };
+    state.todos.push(todo);
+    added.push(todo);
+  });
+  if (added.length) commit();
+  return { added: added.length, skipped: plan.tasks.length - added.length, total: plan.tasks.length };
+}
+
 /* 最近 N 周的整体周目标达成情况（旧到新） */
 export function goalHistory(weeks = 12) {
   const target = goalTargets().weekly;
