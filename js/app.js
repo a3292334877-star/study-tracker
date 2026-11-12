@@ -14,6 +14,7 @@ import { renderCalendar } from './views/calendar.js';
 import { renderPlan } from './views/plan.js';
 import { renderMemory } from './views/memory.js';
 import { renderGoals } from './views/goals.js';
+import { renderMonthly } from './views/monthly.js';
 import { renderMe } from './views/me.js';
 import { openRecordSheet } from './sheets.js';
 
@@ -29,6 +30,7 @@ const ROUTES = {
   plan: renderPlan,
   memory: renderMemory,
   goals: renderGoals,
+  monthly: renderMonthly,
   me: renderMe,
 };
 

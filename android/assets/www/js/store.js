@@ -949,6 +949,134 @@ export function yearSummary(year) {
   };
 }
 
+/* ---------- 月度报告（v1.26） ----------
+   与年度回顾同一口径（按记录结束时间归月）。除了总量，还给出：
+   上月对比、当月每日热力、每日目标达标天数、月度目标进度、科目/标签排行。
+   数据全量现算，不额外存状态。 */
+export function monthSummary(year, month) {
+  const now = new Date();
+  const y = Number(year) || now.getFullYear();
+  let m = Number(month);
+  if (!Number.isFinite(m)) m = now.getMonth();
+  m = Math.max(0, Math.min(11, Math.round(m)));
+  const from = new Date(y, m, 1).getTime();
+  const to = new Date(y, m + 1, 1).getTime();
+  const prevFrom = new Date(y, m - 1, 1).getTime();
+  const list = state.sessions.filter((s) => s.end >= from && s.end < to);
+  const prevList = state.sessions.filter((s) => s.end >= prevFrom && s.end < from);
+  const dailyGoal = Math.max(0, Math.round(Number(state.settings.dailyGoalMin) || 0));
+  const monthlyGoal = Math.max(0, Math.round(Number(state.settings.monthlyGoalMin) || 0));
+  const todayKey = dateKey(now);
+  const dim = new Date(y, m + 1, 0).getDate();
+
+  const dayMap = new Map();
+  const subMap = new Map();
+  const tagMap = new Map();
+  const hourMap = new Array(24).fill(0);
+  list.forEach((s) => {
+    const d = new Date(s.end);
+    const key = dateKey(d);
+    const bucket = dayMap.get(key) || { min: 0, count: 0 };
+    bucket.min += s.minutes || 0;
+    bucket.count += 1;
+    dayMap.set(key, bucket);
+    const id = s.subjectId || '__none';
+    const sub = subMap.get(id) || { min: 0, count: 0 };
+    sub.min += s.minutes || 0;
+    sub.count += 1;
+    subMap.set(id, sub);
+    (Array.isArray(s.tags) ? s.tags : []).forEach((t) => tagMap.set(t, (tagMap.get(t) || 0) + 1));
+    hourMap[new Date(s.start).getHours()] += 1;
+  });
+
+  const byDay = [];
+  for (let day = 1; day <= dim; day += 1) {
+    const key = dateKey(new Date(y, m, day));
+    const bucket = dayMap.get(key) || { min: 0, count: 0 };
+    byDay.push({
+      key,
+      day,
+      minutes: bucket.min,
+      count: bucket.count,
+      level: 0,
+      goalMet: dailyGoal > 0 && bucket.min >= dailyGoal && key <= todayKey,
+      future: key > todayKey,
+    });
+  }
+  const maxDayMin = Math.max(30, ...byDay.map((d) => d.minutes));
+  byDay.forEach((d) => {
+    d.level = d.minutes === 0 ? 0 : Math.min(4, Math.ceil((d.minutes / maxDayMin) * 4));
+  });
+
+  const subjects = [...subMap.entries()]
+    .map(([id, v]) => {
+      const sub = getSubject(id);
+      return {
+        id,
+        name: sub?.name || '未分类',
+        emoji: sub?.emoji || '📘',
+        color: sub?.color || '#98a0b3',
+        min: v.min,
+        count: v.count,
+      };
+    })
+    .sort((a, b) => b.min - a.min || b.count - a.count);
+  const tags = [...tagMap.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || (a.name < b.name ? -1 : 1))
+    .slice(0, 8);
+
+  const keys = [...dayMap.keys()].sort();
+  let longest = 0;
+  let run = 0;
+  let prev = null;
+  keys.forEach((k) => {
+    run = prev && dateKey(addDays(parseKey(prev), 1)) === k ? run + 1 : 1;
+    if (run > longest) longest = run;
+    prev = k;
+  });
+
+  const best = byDay.filter((d) => d.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes || a.day - b.day)[0] || null;
+  let peakHour = -1;
+  let peakCount = 0;
+  hourMap.forEach((c, h) => { if (c > peakCount) { peakCount = c; peakHour = h; } });
+
+  const totalMin = list.reduce((sum, s) => sum + (s.minutes || 0), 0);
+  const prevMin = prevList.reduce((sum, s) => sum + (s.minutes || 0), 0);
+  const activeDays = dayMap.size;
+  const prevActiveDays = new Set(prevList.map((s) => dateKey(new Date(s.end)))).size;
+  const goalMetDays = byDay.filter((d) => d.goalMet).length;
+  return {
+    year: y,
+    month: m,
+    label: y + '年' + (m + 1) + '月',
+    shortLabel: (m + 1) + '月',
+    dim,
+    weekStart: Number(state.settings.weekStart) === 0 ? 0 : 1,
+    totalMin,
+    count: list.length,
+    activeDays,
+    avgPerActive: activeDays ? Math.round(totalMin / activeDays) : 0,
+    dailyGoal,
+    monthlyGoal,
+    monthGoalPct: monthlyGoal > 0 ? Math.min(100, Math.round((totalMin / monthlyGoal) * 100)) : 0,
+    monthGoalLeft: Math.max(0, monthlyGoal - totalMin),
+    goalMetDays,
+    byDay,
+    maxDayMin,
+    subjects,
+    tags,
+    longest,
+    bestDay: best ? { key: best.key, day: best.day, min: best.minutes, count: best.count } : null,
+    peakHour,
+    prevMin,
+    prevActiveDays,
+    prevDeltaPct: prevMin > 0 ? Math.round(((totalMin - prevMin) / prevMin) * 100) : null,
+    isCurrent: y === now.getFullYear() && m === now.getMonth(),
+  };
+}
+
 /* ---------- 学习日历（v1.16） ----------
    把一年铺成 12 个月的日历：每天的学习分钟数按记录结束时间归日，
    和统计 / 日志 / 年度回顾口径一致。返回的数据只用于展示，不额外存状态。 */

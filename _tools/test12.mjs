@@ -37,11 +37,11 @@ check('store.js importSessions', storeSrc.includes('export function importSessio
   && /export function importSessions[\s\S]{0,400}pre-import/.test(storeSrc), true);
 check('me.js 导入 CSV 入口与预览', meSrc.includes('data-act="import-csv"')
   && meSrc.includes('function doImportCSV') && meSrc.includes('function openCsvImportSheet')
-  && meSrc.includes('学习记录 v1.25'), true);
+  && meSrc.includes('学习记录 v1.26'), true);
 check('log.js 导出补科目名', /subjectName:\s*nameById\.get/.test(logSrc)
   && logSrc.includes('getState().subjects'), true);
-check('版本：sw v28 / manifest 22-1.23', swSrc.includes("const CACHE = 'study-tracker-v30';")
-  && manifestXml.includes('android:versionCode="24"') && manifestXml.includes('android:versionName="1.25"'), true);
+check('版本：sw v28 / manifest 22-1.23', swSrc.includes("const CACHE = 'study-tracker-v31';")
+  && manifestXml.includes('android:versionCode="25"') && manifestXml.includes('android:versionName="1.26"'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -1,0 +1,29 @@
+/* 月度报告（v1.26） */
+.month-hero .hero-value b{font-size:46px}
+.month-delta{font-variant-numeric:tabular-nums}
+.month-delta.is-up{color:#b8ffe1}
+.month-delta.is-down{color:#ffd6cb}
+.month-cal-card{padding-bottom:14px}
+.month-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:2px 0 6px;text-align:center;font-size:10.5px;font-weight:600;color:var(--text-3)}
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.month-cell{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:0;border-radius:10px;border:0;padding:0;background:var(--surface-2);color:var(--text-2);font:inherit;font-size:12.5px;font-weight:600;line-height:1}
+button.month-cell{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s ease}
+button.month-cell:not([disabled]):active{transform:scale(.9)}
+.month-cell.lv1{background:color-mix(in srgb,var(--primary) 18%,var(--surface-2));color:var(--primary)}
+.month-cell.lv2{background:color-mix(in srgb,var(--primary) 42%,var(--surface-2));color:#fff}
+.month-cell.lv3{background:color-mix(in srgb,var(--primary) 68%,var(--surface-2));color:#fff}
+.month-cell.lv4{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff}
+.month-cell.is-goal-met{box-shadow:inset 0 0 0 2px var(--success)}
+.month-cell.is-today{outline:2px solid var(--primary-2);outline-offset:1px}
+.month-cell.is-future{background:transparent;border:1px dashed var(--line);color:var(--text-3)}
+.month-cell.is-empty{background:transparent;border:0}
+.month-legend{display:flex;align-items:center;justify-content:flex-start;gap:5px;margin-top:11px;font-size:10.5px;font-weight:500;color:var(--text-3)}
+.month-dot{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--surface-2)}
+.month-dot.lv1{background:color-mix(in srgb,var(--primary) 18%,var(--surface-2))}
+.month-dot.lv2{background:color-mix(in srgb,var(--primary) 42%,var(--surface-2))}
+.month-dot.lv3{background:color-mix(in srgb,var(--primary) 68%,var(--surface-2))}
+.month-dot.lv4{background:linear-gradient(135deg,var(--primary),var(--primary-2))}
+.month-legend-goal{margin-left:auto;color:var(--success);font-weight:600}
+.month-tags{display:flex;flex-wrap:wrap;gap:8px}
+.month-tag{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:99px;background:var(--surface-2);font-size:12.5px;font-weight:600;color:var(--text-2)}
+.month-tag em{font-style:normal;font-size:10.5px;font-weight:700;color:var(--text-3)}

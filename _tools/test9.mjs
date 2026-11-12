@@ -42,7 +42,7 @@ check('提醒接收器 + 开机接收器就绪', recvSrc.includes('daily_reminde
 check('MainActivity 提醒桥就绪', mainSrc.includes('getDailyReminder') && mainSrc.includes('setDailyReminder')
   && mainSrc.includes('createReminderChannel'), true);
 check('me.js 每日提醒入口', meSrc.includes('data-act="daily-reminder"') && meSrc.includes('getDailyReminder')
-  && meSrc.includes('setDailyReminder') && meSrc.includes('REMINDER_PRESETS') && meSrc.includes('学习记录 v1.25'), true);
+  && meSrc.includes('setDailyReminder') && meSrc.includes('REMINDER_PRESETS') && meSrc.includes('学习记录 v1.26'), true);
 
 /* ---------- 2. 启动静态服务器 + Edge（注入 mock AndroidApp） ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));
