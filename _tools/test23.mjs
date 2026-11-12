@@ -53,9 +53,9 @@ check('样式与 SW 资产登记',
     && swSrc.includes("./css/parts/goals.css")
     && swSrc.includes("./js/views/goals.js"), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v32';")
-    && manifestXml.includes('android:versionCode="26"') && manifestXml.includes('android:versionName="1.27"')
-    && meSrc.includes('学习记录 v1.27'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v33';")
+    && manifestXml.includes('android:versionCode="27"') && manifestXml.includes('android:versionName="1.28"')
+    && meSrc.includes('学习记录 v1.28'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
@@ -130,7 +130,7 @@ check('改每周目标为 8 小时并刷新', saved && saved.weekly === 480 && s
 
 await evaluate('location.hash = "#/me"; "ok"');
 await sleep(900);
-const me = await evaluate("(() => ({ entry: !!document.querySelector('[data-act=\"goals\"]'), footer: document.body.innerText.indexOf('学习记录 v1.27') >= 0 }))()");
+const me = await evaluate("(() => ({ entry: !!document.querySelector('[data-act=\"goals\"]'), footer: document.body.innerText.indexOf('学习记录 v1.28') >= 0 }))()");
 check('我的页有学习目标入口与 v1.24 页脚', me && me.entry && me.footer, me);
 
 check('无未捕获异常', logs.length === 0, logs.slice(0, 5));

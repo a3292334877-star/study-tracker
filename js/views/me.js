@@ -144,6 +144,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">学习计划</div><div class="row-sub">本周 ${weekPlan.total} 项任务 · 按天安排</div></div>
         <div class="row-chev">›</div>
       </button>
+      <button class="row" type="button" data-act="insights">
+        <div class="row-ic">🧭</div>
+        <div class="row-main"><div class="row-title">学习洞察</div><div class="row-sub">昼夜节律 / 一周节奏 / 科目结构</div></div>
+        <div class="row-chev">›</div>
+      </button>
       <button class="row" type="button" data-act="achievements">
         <div class="row-ic">🏅</div>
         <div class="row-main"><div class="row-title">成就徽章</div><div class="row-sub">已点亮 ${achieve.unlocked} / ${achieve.total} 枚</div></div>
@@ -225,7 +230,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.27 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.28 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -245,6 +250,8 @@ export function renderMe(ctx) {
     if (goalsRow) goalsRow.addEventListener('click', () => ctx.go('#/goals'));
     const planRow = root.querySelector('[data-act="plan"]');
     if (planRow) planRow.addEventListener('click', () => ctx.go('#/plan'));
+    const insightsRow = root.querySelector('[data-act="insights"]');
+    if (insightsRow) insightsRow.addEventListener('click', () => ctx.go('#/insights?range=30'));
     const achRow = root.querySelector('[data-act="achievements"]');
     if (achRow) achRow.addEventListener('click', () => ctx.go('#/achievements'));
     const tagRow = root.querySelector('[data-act="tag-manage"]');

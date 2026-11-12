@@ -598,6 +598,136 @@ export function rangeSummary(fromKey, toKey) {
     days: days.size,
   };
 }
+/* ---------- 学习洞察（v1.28） ----------
+   把任意一段时间的记录聚合成「节奏 / 时段 / 星期 / 科目 / 标签」画像，
+   并和紧邻的同样长度周期对比；只读，不改任何记录。 */
+export function insightsSummary(days = 30, now = new Date()) {
+  const n = Math.max(1, Math.min(3660, Math.floor(Number(days) || 30)));
+  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startDate = addDays(endDate, -(n - 1));
+  const startKey = dateKey(startDate);
+  const endKey = dateKey(endDate);
+  const prevEndDate = addDays(startDate, -1);
+  const prevStartDate = addDays(prevEndDate, -(n - 1));
+  const prevStartKey = dateKey(prevStartDate);
+  const prevEndKey = dateKey(prevEndDate);
+  const from = parseKey(startKey).getTime();
+  const to = parseKey(endKey).getTime() + 86399999;
+  const prevFrom = parseKey(prevStartKey).getTime();
+  const prevTo = parseKey(prevEndKey).getTime() + 86399999;
+  const list = state.sessions.filter((s) => s.end >= from && s.end <= to);
+  const prevList = state.sessions.filter((s) => s.end >= prevFrom && s.end <= prevTo);
+  const sumOf = (arr) => arr.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
+  const minutes = sumOf(list);
+  const prevMinutes = sumOf(prevList);
+  const count = list.length;
+  const prevCount = prevList.length;
+
+  /* 每天：时长 + 条数（用于活跃率、最佳单日、最长连续） */
+  const dayMap = new Map();
+  list.forEach((s) => {
+    const key = dateKey(new Date(s.end));
+    const bucket = dayMap.get(key) || { minutes: 0, count: 0 };
+    bucket.minutes += Number(s.minutes) || 0;
+    bucket.count += 1;
+    dayMap.set(key, bucket);
+  });
+  const activeDays = dayMap.size;
+  const activeRate = Math.round((activeDays / n) * 100);
+  const avgSession = count ? Math.round(minutes / count) : 0;
+  const avgActiveDay = activeDays ? Math.round(minutes / activeDays) : 0;
+
+  let bestDay = null;
+  dayMap.forEach((v, key) => {
+    if (!bestDay || v.minutes > bestDay.minutes || (v.minutes === bestDay.minutes && v.count > bestDay.count)) {
+      bestDay = { key, minutes: v.minutes, count: v.count };
+    }
+  });
+  let bestStreak = 0;
+  let run = 0;
+  for (let i = 0; i < n; i += 1) {
+    const key = dateKey(addDays(startDate, i));
+    if (dayMap.has(key)) {
+      run += 1;
+      if (run > bestStreak) bestStreak = run;
+    } else {
+      run = 0;
+    }
+  }
+
+  /* 24 小时 / 7 天分布：按记录开始时间 */
+  const hourBars = Array.from({ length: 24 }, () => 0);
+  const weekdayBars = Array.from({ length: 7 }, () => 0);
+  list.forEach((s) => {
+    const d = new Date(s.start);
+    hourBars[d.getHours()] += Number(s.minutes) || 0;
+    weekdayBars[(d.getDay() + 6) % 7] += Number(s.minutes) || 0; // 0 = 周一
+  });
+  let peakHour = -1;
+  hourBars.forEach((m, h) => { if (m > 0 && (peakHour < 0 || m > hourBars[peakHour])) peakHour = h; });
+  let peakWeekday = -1;
+  weekdayBars.forEach((m, w) => { if (m > 0 && (peakWeekday < 0 || m > weekdayBars[peakWeekday])) peakWeekday = w; });
+
+  /* 科目结构 */
+  const subjMap = new Map();
+  list.forEach((s) => {
+    const key = s.subjectId || '__none__';
+    const row = subjMap.get(key) || { minutes: 0, count: 0 };
+    row.minutes += Number(s.minutes) || 0;
+    row.count += 1;
+    subjMap.set(key, row);
+  });
+  const subjects = [...subjMap.entries()].map(([id, v]) => {
+    const sub = state.subjects.find((x) => x.id === id);
+    return {
+      id,
+      name: sub ? sub.name : '未分类',
+      emoji: sub ? sub.emoji : '📝',
+      color: sub ? sub.color : '#98a0b3',
+      minutes: v.minutes,
+      count: v.count,
+      pct: minutes > 0 ? Math.round((v.minutes / minutes) * 100) : 0,
+    };
+  }).sort((a, b) => b.minutes - a.minutes || b.count - a.count);
+
+  /* 标签：出现次数 + 时长 */
+  const tagMap = new Map();
+  list.forEach((s) => {
+    (s.tags || []).forEach((tag) => {
+      const row = tagMap.get(tag) || { tag, count: 0, minutes: 0 };
+      row.count += 1;
+      row.minutes += Number(s.minutes) || 0;
+      tagMap.set(tag, row);
+    });
+  });
+  const tags = [...tagMap.values()].sort((a, b) => b.count - a.count || b.minutes - a.minutes);
+
+  const deltaPct = prevMinutes > 0 ? Math.round(((minutes - prevMinutes) / prevMinutes) * 100) : null;
+  return {
+    days: n,
+    startKey,
+    endKey,
+    prevStartKey,
+    prevEndKey,
+    minutes,
+    count,
+    prevMinutes,
+    prevCount,
+    deltaPct,
+    activeDays,
+    activeRate,
+    avgSession,
+    avgActiveDay,
+    bestDay,
+    bestStreak,
+    hourBars,
+    weekdayBars,
+    peakHour,
+    peakWeekday,
+    subjects,
+    tags,
+  };
+}
 /* 最佳单日 { key, minutes, count } | null */
 /* ---------- 学习目标（v1.22） ----------
    每日目标原先只在首页显示；这里补上「每周 / 每月总目标」与达标历史，

@@ -54,7 +54,7 @@ check('adaptive-icon 引用渐变背景 + 前景',
 // 6) manifest 版本与 launcher 图标
 const manifest = read('android/AndroidManifest.xml');
 check('manifest 19/1.20 + @mipmap/ic_launcher',
-  manifest.includes('android:versionCode="26"') && manifest.includes('android:versionName="1.27"')
+  manifest.includes('android:versionCode="27"') && manifest.includes('android:versionName="1.28"')
     && manifest.includes('android:icon="@mipmap/ic_launcher"')
     && manifest.includes('android:roundIcon="@mipmap/ic_launcher"'), true);
 
@@ -62,10 +62,10 @@ check('manifest 19/1.20 + @mipmap/ic_launcher',
 const sw = read('sw.js');
 const me = read('js/views/me.js');
 check('sw v28 预载三个图标 / 页脚 v1.24',
-  sw.includes("const CACHE = 'study-tracker-v32';")
+  sw.includes("const CACHE = 'study-tracker-v33';")
     && sw.includes("./icon.svg") && sw.includes("./icon-180.png")
     && sw.includes("./icon-192.png") && sw.includes("./icon-512.png")
-    && me.includes('学习记录 v1.27'), true);
+    && me.includes('学习记录 v1.28'), true);
 
 // 8) README v1.20
 const readme = read('README.md');

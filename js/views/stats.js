@@ -386,6 +386,12 @@ export function renderStats(ctx) {
       <button class="btn primary block" type="button" data-act="streak-card" aria-label="生成连续打卡分享卡">🎴 打卡卡</button>
     </section>
 
+    <section class="card fade-in" id="insights-card">
+      <div class="card-title"><h3>学习洞察</h3><span class="more">节奏 · 时段 · 科目</span></div>
+      <p class="hint" style="margin:0 0 14px">把昼夜节律、一周状态、科目结构与自动观察整理成一份画像，帮你看清自己的学习方式。</p>
+      <button class="btn block" type="button" data-act="insights">🧭 打开学习洞察</button>
+    </section>
+
     <section class="card fade-in" id="month-report-card">
       <div class="card-title"><h3>月度报告</h3><span class="more">这个月走了多远</span></div>
       <p class="hint" style="margin:0 0 14px">日历、科目、标签与目标达成，把这个月叠成一份总结，还能存成海报。</p>
@@ -443,6 +449,8 @@ export function renderStats(ctx) {
     if (reviewBtn) reviewBtn.addEventListener('click', () => { ctx.go('#/review?year=' + new Date().getFullYear()); });
     const calendarBtn = root.querySelector('[data-act="calendar"]');
     if (calendarBtn) calendarBtn.addEventListener('click', () => { ctx.go('#/calendar?year=' + new Date().getFullYear()); });
+    const insightsBtn = root.querySelector('[data-act="insights"]');
+    if (insightsBtn) insightsBtn.addEventListener('click', () => { ctx.go('#/insights?range=30'); });
     const monthReportBtn = root.querySelector('[data-act="month-report"]');
     if (monthReportBtn) monthReportBtn.addEventListener('click', () => {
       const now = new Date();

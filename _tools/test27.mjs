@@ -59,10 +59,10 @@ check('月度报告样式',
     && monthlyCss.includes('.month-cell.lv4')
     && monthlyCss.includes('.is-goal-met')
     && monthlyCss.includes('.month-tags'), true);
-check('版本：sw v32 / manifest 26-1.27 / 页脚 v1.27',
-  swSrc.includes("const CACHE = 'study-tracker-v32';")
-    && manifestXml.includes('android:versionCode="26"') && manifestXml.includes('android:versionName="1.27"')
-    && meSrc.includes('学习记录 v1.27'), true);
+check('版本：sw v33 / manifest 27-1.28 / 页脚 v1.28',
+  swSrc.includes("const CACHE = 'study-tracker-v33';")
+    && manifestXml.includes('android:versionCode="27"') && manifestXml.includes('android:versionName="1.28"')
+    && meSrc.includes('学习记录 v1.28'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
@@ -149,8 +149,8 @@ check('月度海报标题', poster && poster.title.indexOf('学习月报') >= 0,
 
 await evaluate('location.hash = "#/me"; "ok"');
 await sleep(900);
-const me = await evaluate("(() => ({ footer: document.body.innerText.indexOf('学习记录 v1.27') >= 0 }))()");
-check('我的页 v1.27 页脚', me && me.footer, me);
+const me = await evaluate("(() => ({ footer: document.body.innerText.indexOf('学习记录 v1.28') >= 0 }))()");
+check('我的页 v1.28 页脚', me && me.footer, me);
 
 check('无未捕获异常', logs.length === 0, logs.slice(0, 5));
 ws.close(); edge.kill(); server.kill();
