@@ -40,9 +40,9 @@ check('store 设置默认值',
   storeSrc.includes('pomodoroCycle: false') && storeSrc.includes('pomodoroShortMin: 5')
     && storeSrc.includes('pomodoroLongMin: 15') && storeSrc.includes('pomodoroRounds: 4'), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v29';")
-    && manifestXml.includes('android:versionCode="23"') && manifestXml.includes('android:versionName="1.24"')
-    && meSrc.includes('学习记录 v1.24'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v30';")
+    && manifestXml.includes('android:versionCode="24"') && manifestXml.includes('android:versionName="1.25"')
+    && meSrc.includes('学习记录 v1.25'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -122,6 +122,66 @@
   height: 11px;
   border-radius: 3px;
 }
+
+/* v1.25 目标达成视图 */
+.cal-goal-stat {
+  margin: -2px 0 12px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cal-goal-stat b { color: var(--text); }
+.cal-view-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 4px;
+}
+.cal-view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.cal-view-btn {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.cal-view-btn.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-1);
+}
+.cal-view-btn:disabled { opacity: .45; }
+.cal-view-note {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.cal-months.goal-view .cal-cell {
+  background: color-mix(in srgb, var(--text-3) 11%, var(--surface));
+  color: var(--text-3);
+  font-weight: 600;
+}
+.cal-months.goal-view .cal-cell.is-goal-met {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+}
+.cal-legend-goal i.is-goal-miss { background: color-mix(in srgb, var(--text-3) 18%, var(--surface-2)); }
+.cal-legend-goal i.is-goal-met { background: var(--primary); }
 [data-theme="dark"] .cal-cell { color: var(--text-2); }
 [data-theme="dark"] .cal-cell.lv3,
 [data-theme="dark"] .cal-cell.lv4 { color: #fff; }

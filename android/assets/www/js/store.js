@@ -954,6 +954,7 @@ export function yearSummary(year) {
    和统计 / 日志 / 年度回顾口径一致。返回的数据只用于展示，不额外存状态。 */
 export function calendarYear(year) {
   const y = Number(year) || new Date().getFullYear();
+  const goalMin = Math.max(0, Math.round(Number(state.settings.dailyGoalMin) || 0));
   const from = new Date(y, 0, 1).getTime();
   const to = new Date(y + 1, 0, 1).getTime();
   const list = state.sessions.filter((s) => s.end >= from && s.end < to);
@@ -978,7 +979,10 @@ export function calendarYear(year) {
     for (let d = 1; d <= dim; d++) {
       const key = dateKey(new Date(y, m.month - 1, d));
       const bucket = dayMap.get(key) || { min: 0, count: 0 };
-      m.days.push({ key, day: d, minutes: bucket.min, count: bucket.count, level: 0 });
+      m.days.push({
+        key, day: d, minutes: bucket.min, count: bucket.count, level: 0,
+        goalMet: goalMin > 0 && bucket.min >= goalMin,
+      });
       m.totalMin += bucket.min;
       m.count += bucket.count;
     }
@@ -988,6 +992,11 @@ export function calendarYear(year) {
   months.forEach((m) => m.days.forEach((d) => {
     d.level = d.minutes === 0 ? 0 : Math.min(4, Math.ceil((d.minutes / maxDayMin) * 4));
   }));
+  let goalMetDays = 0;
+  months.forEach((m) => {
+    m.metDays = m.days.filter((d) => d.goalMet).length;
+    goalMetDays += m.metDays;
+  });
 
   const keys = [...dayMap.entries()].filter(([, v]) => v.min > 0).map(([k]) => k).sort();
   let longest = 0;
@@ -1013,6 +1022,8 @@ export function calendarYear(year) {
     bestDay: best ? { key: best[0], min: best[1].min } : null,
     bestMonth,
     maxDayMin,
+    goalMin,
+    goalMetDays,
     months,
   };
 }

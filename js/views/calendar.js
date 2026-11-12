@@ -1,4 +1,5 @@
-/* 学习日历（v1.16）：把一年 12 个月铺成可点的日历，回看/补记每一天 */
+/* 学习日历（v1.16）：把一年 12 个月铺成可点的日历，回看/补记每一天
+   v1.25 目标达成视图：叠加每日目标，点亮达标的日子 */
 import { calendarYear, getState } from '../store.js';
 import { fmtMin, fmtMinShort, monthDayCN, parseKey, haptic } from '../util.js';
 import { openDaySheet } from '../sheets.js';
@@ -9,6 +10,13 @@ function weekHead(weekStart) {
   return Array.from({ length: 7 }, (_, i) => WEEK[(weekStart + i) % 7]);
 }
 
+function calHref(year, view, currentYear) {
+  const parts = [];
+  if (year !== currentYear) parts.push('year=' + year);
+  if (view === 'goal') parts.push('view=goal');
+  return '#/calendar' + (parts.length ? '?' + parts.join('&') : '');
+}
+
 export function renderCalendar(ctx) {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -16,12 +24,15 @@ export function renderCalendar(ctx) {
   const year = Number.isFinite(asked) && asked > 0
     ? Math.min(currentYear, Math.max(2000, Math.round(asked)))
     : currentYear;
+  const view = ctx.query.view === 'goal' ? 'goal' : 'volume';
+  const goalMode = view === 'goal';
   const d = calendarYear(year);
   const weekStart = Number(getState().settings.weekStart) || 1;
   const total = fmtMin(d.totalMin);
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const bestText = d.bestDay ? monthDayCN(parseKey(d.bestDay.key)) + ' · ' + fmtMinShort(d.bestDay.min) : '—';
   const bestMonth = d.bestMonth >= 0 ? (d.bestMonth + 1) + ' 月' : '—';
+  const goalRate = d.activeDays ? Math.round((d.goalMetDays / d.activeDays) * 100) : 0;
   const prevDisabled = year <= 2000;
   const nextDisabled = year >= currentYear;
 
@@ -33,15 +44,36 @@ export function renderCalendar(ctx) {
     m.days.forEach((day) => {
       const future = day.key > todayKey;
       const isToday = day.key === todayKey;
-      const label = day.key + (day.minutes ? ' · ' + fmtMinShort(day.minutes) : ' · 没有记录');
-      cells.push('<button type="button" class="cal-cell lv' + day.level + (isToday ? ' today' : '') + '" data-day="' + day.key + '" title="' + label + '" aria-label="' + label + '"' + (future ? ' disabled' : '') + '>' + day.day + '</button>');
+      let cls = 'cal-cell';
+      if (goalMode) cls += ' goal-cell' + (day.goalMet ? ' is-goal-met' : ' is-goal-miss');
+      else cls += ' lv' + day.level;
+      if (isToday) cls += ' today';
+      const label = day.key + (goalMode
+        ? (day.goalMet ? ' · 已达标' : ' · 未达标') + (day.minutes ? ' · ' + fmtMinShort(day.minutes) : '')
+        : (day.minutes ? ' · ' + fmtMinShort(day.minutes) : ' · 没有记录'));
+      cells.push('<button type="button" class="' + cls + '" data-day="' + day.key + '" title="' + label + '" aria-label="' + label + '"' + (future ? ' disabled' : '') + '>' + day.day + '</button>');
     });
+    const monthTotal = goalMode
+      ? (m.metDays ? m.metDays + ' 天' : '—')
+      : (m.totalMin ? fmtMinShort(m.totalMin) : '—');
     return '<section class="cal-month fade-in' + (year === currentYear && m.month === now.getMonth() + 1 ? ' is-now' : '') + '" data-month="' + m.month + '">' +
-      '<div class="cal-month-head"><span class="cal-month-name">' + m.label + '</span><span class="cal-month-total">' + (m.totalMin ? fmtMinShort(m.totalMin) : '—') + '</span></div>' +
+      '<div class="cal-month-head"><span class="cal-month-name">' + m.label + '</span><span class="cal-month-total">' + monthTotal + '</span></div>' +
       '<div class="cal-week" aria-hidden="true">' + weekHead(weekStart).map((w) => '<span>' + w + '</span>').join('') + '</div>' +
       '<div class="cal-grid" role="group" aria-label="' + year + ' 年 ' + m.label + '">' + cells.join('') + '</div>' +
     '</section>';
   }).join('');
+
+  const factsHtml = goalMode
+    ? '<div class="cal-fact"><b id="cal-days">' + d.activeDays + '</b><span>学习天数</span></div>'
+      + '<div class="cal-fact"><b id="cal-goal-days">' + d.goalMetDays + '</b><span>目标达标</span></div>'
+      + '<div class="cal-fact"><b>' + goalRate + '%</b><span>达标率</span></div>'
+    : '<div class="cal-fact"><b id="cal-days">' + d.activeDays + '</b><span>学习天数</span></div>'
+      + '<div class="cal-fact"><b id="cal-count">' + d.count + '</b><span>记录条数</span></div>'
+      + '<div class="cal-fact"><b>' + bestMonth + '</b><span>最活跃月份</span></div>';
+
+  const goalStat = d.goalMin > 0
+    ? '每日目标 ' + fmtMinShort(d.goalMin) + ' · 全年达标 <b>' + d.goalMetDays + '</b> 天'
+    : '还没有设置每日目标，去「学习目标」设置后即可查看目标达成视图。';
 
   const html = `
     <div class="year-nav fade-in">
@@ -56,21 +88,24 @@ export function renderCalendar(ctx) {
       <div class="hero-sub" id="cal-sub">${d.count} 条记录 · ${d.activeDays} 天有记录 · 最长连续 ${d.longest} 天</div>
     </section>
 
-    <div class="cal-facts fade-in" id="cal-facts">
-      <div class="cal-fact"><b id="cal-days">${d.activeDays}</b><span>学习天数</span></div>
-      <div class="cal-fact"><b id="cal-count">${d.count}</b><span>记录条数</span></div>
-      <div class="cal-fact"><b>${bestMonth}</b><span>最活跃月份</span></div>
-    </div>
+    <div class="cal-facts fade-in" id="cal-facts">${factsHtml}</div>
+    <p class="cal-goal-stat fade-in" id="cal-goal-stat">${goalStat}</p>
 
     <section class="card cal-card fade-in">
-      <div class="card-title"><h3>每一天</h3><span class="more">最佳单日 · ${bestText}</span></div>
-      <p class="hint cal-hint">颜色越深，那天学得越久。点任意一天可以查看当天记录，也可以补记。</p>
-      ${d.count ? '' : '<p class="cal-empty" id="cal-empty">这一年还没有学习记录，点任意一天可以补记。</p>'}
-      <div class="cal-months" id="cal-months">${monthCards}</div>
-      <div class="cal-legend" aria-hidden="true"><span>少</span>
-        ${[0.06, 0.28, 0.48, 0.72, 1].map((a) => '<i style="background:color-mix(in srgb,var(--primary) ' + Math.round(a * 100) + '%,var(--surface-2))"></i>').join('')}
-        <span>多</span>
+      <div class="card-title"><h3>每一天</h3><span class="more">${goalMode ? '全年达标 ' + d.goalMetDays + ' 天' : '最佳单日 · ' + bestText}</span></div>
+      <div class="cal-view-row">
+        <div class="cal-view-toggle" role="group" aria-label="日历视图">
+          <button class="cal-view-btn${goalMode ? '' : ' on'}" type="button" data-cal-view="volume" aria-pressed="${goalMode ? 'false' : 'true'}">学习量</button>
+          <button class="cal-view-btn${goalMode ? ' on' : ''}" type="button" data-cal-view="goal" aria-pressed="${goalMode ? 'true' : 'false'}"${d.goalMin > 0 ? '' : ' disabled title="先设置每日目标"'}>目标达成</button>
+        </div>
+        <span class="cal-view-note">${goalMode ? '点亮 = 达到每日目标' : '颜色越深学得越久'}</span>
       </div>
+      <p class="hint cal-hint">${goalMode ? '点任意一天可以查看当天记录，也可以补记；达到每日目标的日子会点亮。' : '颜色越深，那天学得越久。点任意一天可以查看当天记录，也可以补记。'}</p>
+      ${d.count ? '' : '<p class="cal-empty" id="cal-empty">这一年还没有学习记录，点任意一天可以补记。</p>'}
+      <div class="cal-months${goalMode ? ' goal-view' : ''}" id="cal-months">${monthCards}</div>
+      ${goalMode
+        ? '<div class="cal-legend cal-legend-goal" aria-hidden="true"><i class="is-goal-miss"></i><span>未达标</span><i class="is-goal-met"></i><span>已达标</span></div>'
+        : '<div class="cal-legend" aria-hidden="true"><span>少</span>' + [0.06, 0.28, 0.48, 0.72, 1].map((a) => '<i style="background:color-mix(in srgb,var(--primary) ' + Math.round(a * 100) + '%,var(--surface-2))"></i>').join('') + '<span>多</span></div>'}
     </section>
   `;
 
@@ -80,7 +115,15 @@ export function renderCalendar(ctx) {
         const next = Math.min(currentYear, Math.max(2000, year + Number(b.dataset.yearStep)));
         if (next === year) return;
         haptic();
-        ctx.go('#/calendar?year=' + next);
+        ctx.go(calHref(next, view, currentYear));
+      });
+    });
+    root.querySelectorAll('[data-cal-view]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const nextView = b.dataset.calView === 'goal' ? 'goal' : 'volume';
+        if (nextView === view || b.disabled) return;
+        haptic();
+        ctx.go(calHref(year, nextView, currentYear));
       });
     });
     root.querySelectorAll('[data-day]').forEach((btn) => {
@@ -92,5 +135,5 @@ export function renderCalendar(ctx) {
     });
   }
 
-  return { title: '学习日历', sub: '按天回看自己的积累', html, mount };
+  return { title: '学习日历', sub: goalMode ? '看看哪些天达成了每日目标' : '按天回看自己的积累', html, mount };
 }

@@ -150,6 +150,7 @@ export function renderGoals(ctx) {
       </div>
       <p class="goal-legend"><span>少</span><i class="goal-day l1"></i><i class="goal-day l2"></i><i class="goal-day l3"></i><span>多 / 达成</span></p>
       <p class="hint">颜色越深表示当天离每日目标越近，达到目标即点亮。</p>
+      <button class="btn block mt12" type="button" data-act="goal-calendar">查看全年目标达成 →</button>
     </section>
 
     <section class="card fade-in">
@@ -169,6 +170,8 @@ export function renderGoals(ctx) {
     });
     const planBtn = root.querySelector('[data-act="goal-plan"]');
     if (planBtn) planBtn.addEventListener('click', () => openGoalPlanSheet(ctx));
+    const calBtn = root.querySelector('[data-act="goal-calendar"]');
+    if (calBtn) calBtn.addEventListener('click', () => { haptic(); ctx.go('#/calendar?view=goal'); });
   }
 
   return { title: '学习目标', sub: '看见每天的积累', html, mount };
