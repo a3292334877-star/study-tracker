@@ -42,12 +42,69 @@ export function weekData(weekStart = 1, ref = new Date()) {
     .slice(0, 6)
     .map(([t]) => t);
 
+  /* v1.29：按天、标签、时段补齐周报需要的数据；都从同一批 inRange 记录算，口径一致 */
+  const settings = state.settings || {};
+  const dailyGoal = Math.max(0, Math.round(Number(settings.dailyGoalMin) || 0));
+  const weeklyGoal = Math.max(0, Math.round(Number(settings.weeklyGoalMin) || 0));
+  const todayKey = dateKey(new Date());
+  const dayMap = new Map();
+  inRange.forEach((s) => {
+    const k = dateKey(new Date(s.end));
+    const row = dayMap.get(k) || { minutes: 0, count: 0 };
+    row.minutes += Number(s.minutes) || 0;
+    row.count += 1;
+    dayMap.set(k, row);
+  });
+  const daily = keys.map((key) => {
+    const date = parseKey(key);
+    const row = dayMap.get(key) || { minutes: 0, count: 0 };
+    return {
+      key,
+      day: date.getDate(),
+      month: date.getMonth() + 1,
+      label: `${date.getMonth() + 1}/${date.getDate()}`,
+      minutes: row.minutes,
+      count: row.count,
+      goalMet: dailyGoal > 0 && row.minutes >= dailyGoal,
+      isToday: key === todayKey,
+      future: key > todayKey,
+    };
+  });
+  let bestDay = null;
+  daily.forEach((x) => {
+    if (x.minutes <= 0) return;
+    if (!bestDay || x.minutes > bestDay.minutes || (x.minutes === bestDay.minutes && x.count > bestDay.count)) {
+      bestDay = { key: x.key, minutes: x.minutes, count: x.count };
+    }
+  });
+
+  const tagMap = new Map();
+  inRange.forEach((s) => {
+    (Array.isArray(s.tags) ? s.tags : []).forEach((tag) => {
+      const row = tagMap.get(tag) || { name: tag, count: 0, minutes: 0 };
+      row.count += 1;
+      row.minutes += Number(s.minutes) || 0;
+      tagMap.set(tag, row);
+    });
+  });
+  const tags = [...tagMap.values()]
+    .sort((a, b) => b.count - a.count || b.minutes - a.minutes || (a.name < b.name ? -1 : 1))
+    .slice(0, 8);
+
+  const hourMin = Array.from({ length: 24 }, () => 0);
+  inRange.forEach((s) => { hourMin[new Date(s.start).getHours()] += Number(s.minutes) || 0; });
+  let peakHour = -1;
+  hourMin.forEach((m, h) => { if (m > 0 && (peakHour < 0 || m > hourMin[peakHour])) peakHour = h; });
+
   const first = parseKey(keys[0]);
   const last = parseKey(keys[6]);
+  const rangeText = first.getFullYear() === last.getFullYear()
+    ? `${first.getMonth() + 1}月${first.getDate()}日 - ${last.getMonth() + 1}月${last.getDate()}日`
+    : `${first.getFullYear()}年${first.getMonth() + 1}月${first.getDate()}日 - ${last.getFullYear()}年${last.getMonth() + 1}月${last.getDate()}日`;
   return {
     start,
     end: last,
-    rangeText: `${first.getMonth() + 1}月${first.getDate()}日 - ${last.getMonth() + 1}月${last.getDate()}日`,
+    rangeText,
     totalMin,
     count: inRange.length,
     activeDays,
@@ -56,6 +113,14 @@ export function weekData(weekStart = 1, ref = new Date()) {
     highlights,
     goalMet: subjects.filter((s) => s.goalMinWeek > 0 && s.min >= s.goalMinWeek).length,
     goalTotal: subjects.filter((s) => s.goalMinWeek > 0).length,
+    /* 以下为 v1.29 周报页面新增字段 */
+    daily,
+    dailyGoal,
+    weeklyGoal,
+    goalPct: weeklyGoal > 0 ? Math.min(100, Math.round((totalMin / weeklyGoal) * 100)) : 0,
+    bestDay,
+    peakHour,
+    tags,
   };
 }
 
@@ -66,6 +131,7 @@ export function weeklyText(d) {
   lines.push(`📅 ${d.rangeText}`);
   lines.push('');
   lines.push(`⏱ 累计学习 ${fmtMinShort(d.totalMin)} · ${d.count} 条记录 · 学习 ${d.activeDays} 天`);
+  if (d.weeklyGoal > 0) lines.push(`🎯 周总目标 ${fmtMinShort(d.totalMin)} / ${fmtMinShort(d.weeklyGoal)}（${d.goalPct}%）`);
   if (d.goalTotal > 0) lines.push(`🎯 周目标达成 ${d.goalMet}/${d.goalTotal} 个科目`);
   if (d.subjects.length) {
     lines.push('');

@@ -374,10 +374,11 @@ export function renderStats(ctx) {
     <section class="card fade-in" id="report-card">
       <div class="card-title"><h3>学习周报</h3><span class="more">${weekInfo.rangeText}</span></div>
       <p class="hint" style="margin:0 0 14px">把这一周的坚持变成一张可以分享的卡片。</p>
-      <div style="display:flex;gap:10px">
+      <div style="display:flex;gap:10px;margin-bottom:10px">
         <button class="btn primary" type="button" data-act="report-poster" style="flex:1">🖼️ 生成海报</button>
         <button class="btn" type="button" data-act="report-text" style="flex:1">📋 复制文字</button>
       </div>
+      <button class="btn block" type="button" data-act="weekly-report">📅 查看完整周报</button>
     </section>` : ''}
 
     <section class="card fade-in" id="streak-card-card">
@@ -443,6 +444,8 @@ export function renderStats(ctx) {
     if (posterBtn) posterBtn.addEventListener('click', () => openPosterSheet());
     const textBtn = root.querySelector('[data-act="report-text"]');
     if (textBtn) textBtn.addEventListener('click', copyWeeklyText);
+    const weeklyReportBtn = root.querySelector('[data-act="weekly-report"]');
+    if (weeklyReportBtn) weeklyReportBtn.addEventListener('click', () => { ctx.go('#/weekly'); });
     const streakBtn = root.querySelector('[data-act="streak-card"]');
     if (streakBtn) streakBtn.addEventListener('click', () => openStreakCard());
     const reviewBtn = root.querySelector('[data-act="year-review"]');

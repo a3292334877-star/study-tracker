@@ -16,6 +16,7 @@ import { renderMemory } from './views/memory.js';
 import { renderGoals } from './views/goals.js';
 import { renderMonthly } from './views/monthly.js';
 import { renderInsights } from './views/insights.js';
+import { renderWeekly } from './views/weekly.js';
 import { renderMe } from './views/me.js';
 import { openRecordSheet } from './sheets.js';
 
@@ -33,6 +34,7 @@ const ROUTES = {
   goals: renderGoals,
   monthly: renderMonthly,
   insights: renderInsights,
+  weekly: renderWeekly,
   me: renderMe,
 };
 

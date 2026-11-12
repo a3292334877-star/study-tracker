@@ -36,8 +36,8 @@ const xmlMeta = read('android/res/xml/widget_today.xml');
 const bgXml = read('android/res/drawable/widget_bg.xml');
 const layoutXml = read('android/res/layout/widget_today.xml');
 
-check('manifest v1.21 + widget receiver', manifestXml.includes('android:versionCode="27"')
-  && manifestXml.includes('android:versionName="1.28"')
+check('manifest v1.21 + widget receiver', manifestXml.includes('android:versionCode="28"')
+  && manifestXml.includes('android:versionName="1.29"')
   && manifestXml.includes('.TodayWidgetProvider')
   && manifestXml.includes('android.appwidget.action.APPWIDGET_UPDATE')
   && manifestXml.includes('@xml/widget_today'), true);
@@ -55,7 +55,7 @@ check('MainActivity 桥就绪', mainSrc.includes('public void updateWidget(final
 check('app.js 推送钩子', appSrc.includes('minutesOfDay, streak') && appSrc.includes('dateKey')
   && appSrc.includes('function pushWidget()') && appSrc.includes("bridge.updateWidget(String(minutesOfDay(dateKey(new Date()))), String(streak()))")
   && (appSrc.match(/pushWidget\(\);/g) || []).length >= 2, true);
-check('sw v28 + 页脚 v1.24', swSrc.includes("const CACHE = 'study-tracker-v33';") && meSrc.includes('学习记录 v1.28'), true);
+check('sw v28 + 页脚 v1.24', swSrc.includes("const CACHE = 'study-tracker-v34';") && meSrc.includes('学习记录 v1.29'), true);
 
 /* ---------- 2. 启动静态服务器 + Edge（注入 mock AndroidApp） ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

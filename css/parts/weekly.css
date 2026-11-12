@@ -1,0 +1,49 @@
+/* 学习周报（v1.29） */
+.week-nav{margin-bottom:4px}
+.week-current-btn{
+  display:block;margin:0 auto 12px;padding:7px 14px;border:0;border-radius:999px;
+  background:var(--primary-soft);color:var(--primary);font:inherit;font-size:12px;font-weight:600;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.week-current-btn:active{transform:scale(.96)}
+.week-chart-card{padding-bottom:14px}
+.week-days{
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:stretch;
+  height:150px;margin:8px 0 0;
+}
+.week-day{
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;gap:4px;
+  min-width:0;height:100%;padding:0;border:0;background:none;color:var(--text-3);
+  font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.week-day:active{opacity:.72}
+.week-day[disabled]{cursor:default;opacity:.42}
+.week-day-bar{
+  position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;
+  min-height:0;border-radius:8px;background:var(--surface-2);overflow:hidden;
+}
+.week-day-bar i{
+  display:block;width:100%;border-radius:7px;
+  background:linear-gradient(180deg,var(--primary-2),var(--primary));
+  transition:height .2s ease;
+}
+.week-day.is-zero .week-day-bar{background:transparent;border:1px dashed var(--line)}
+.week-day.is-zero .week-day-bar i{background:transparent}
+.week-day.is-today .week-day-bar{outline:2px solid var(--primary-2);outline-offset:1px}
+.week-day.is-goal .week-day-bar i{background:linear-gradient(180deg,#34d399,var(--success, #12b76a))}
+.week-day-val{height:13px;font-size:10px;font-weight:700;color:var(--text-2);text-align:center;white-space:nowrap}
+.week-day-lbl{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  font-size:10px;font-weight:600;color:var(--text-3);white-space:nowrap;
+}
+.week-day-lbl em{font-style:normal;font-size:11px;font-weight:700;color:var(--text-2)}
+.week-day.is-today .week-day-lbl em,.week-day.is-today .week-day-lbl{color:var(--primary)}
+.week-goal-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 0 10px}
+.week-goal-top b{font-size:30px;line-height:1.05;letter-spacing:-1px;color:var(--text)}
+.week-goal-top span{font-size:12px;font-weight:600;color:var(--text-3)}
+.week-highlights{list-style:none;display:flex;flex-direction:column;gap:10px}
+.week-highlights li{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;line-height:1.55;color:var(--text-2)}
+.week-hl-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--primary);margin-top:7px;box-shadow:0 0 0 3px var(--primary-soft)}
+.week-empty{text-align:center}
+.week-empty .empty{padding:8px 0 4px}
+.week-empty .btn{margin-top:6px}

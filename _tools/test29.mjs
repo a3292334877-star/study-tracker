@@ -49,11 +49,11 @@ check('统计页 / 我的页 / 样式清单',
     && indexSrc.includes('css/parts/insights.css')
     && swSrc.includes('./js/views/insights.js')
     && swSrc.includes('./css/parts/insights.css'), true);
-check('版本：sw v33 / manifest 27-1.28 / 页脚 v1.28',
-  swSrc.includes("const CACHE = 'study-tracker-v33';")
-    && manifestXml.includes('android:versionCode="27"')
-    && manifestXml.includes('android:versionName="1.28"')
-    && meSrc.includes('学习记录 v1.28'), true);
+check('版本：sw v34 / manifest 28-1.29 / 页脚 v1.29',
+  swSrc.includes("const CACHE = 'study-tracker-v34';")
+    && manifestXml.includes('android:versionCode="28"')
+    && manifestXml.includes('android:versionName="1.29"')
+    && meSrc.includes('学习记录 v1.29'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
