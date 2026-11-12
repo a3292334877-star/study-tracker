@@ -230,7 +230,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.29 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.30 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -892,7 +892,7 @@ function openBackupsSheet(ctx) {
 }
 
 /* ---------- v1.27：记录回收站 ---------- */
-const TRASH_REASON_TEXT = { delete: '手动删除', 'batch-delete': '批量删除' };
+const TRASH_REASON_TEXT = { delete: '手动删除', 'batch-delete': '批量删除', 'subject-delete': '删除科目' };
 
 function trashReasonText(reason) {
   return TRASH_REASON_TEXT[reason] || '删除';
@@ -903,9 +903,9 @@ function trashWhen(at) {
   return monthDayCN(new Date(ts)) + ' ' + hhmm(ts);
 }
 
-function trashSessionName(s) {
+function trashSessionName(s, fallbackName) {
   const subject = getState().subjects.find((x) => x.id === (s && s.subjectId));
-  const subjectName = subject ? subject.name : '未分类';
+  const subjectName = subject ? subject.name : (fallbackName || '未分类');
   const title = String((s && s.title) || '').trim() || '（无标题）';
   return subjectName + ' · ' + title;
 }
@@ -918,9 +918,11 @@ function trashListHTML() {
     return head + '<p class="mez-empty">回收站是空的<br>删除的记录会先放到这里</p>';
   }
   return head + '<div class="mez-backup-list">' + list.map((item) => {
-    const preview = item.sessions.slice(0, 2).map(trashSessionName).join(' / ')
+    const fallback = item.subject && item.subject.name;
+    const preview = item.sessions.slice(0, 2).map((s) => trashSessionName(s, fallback)).join(' / ')
       + (item.sessions.length > 2 ? ' 等 ' + item.sessions.length + ' 条' : '');
     const meta = trashWhen(item.at) + ' · ' + trashReasonText(item.reason)
+      + (fallback ? ' · 科目「' + fallback + '」' : '')
       + (item.totalMin ? ' · ' + fmtMinShort(item.totalMin) : '');
     return `
       <div class="mez-backup-row mez-trash-row" role="group" aria-label="${esc(item.count + ' 条记录，' + meta)}">
@@ -965,7 +967,8 @@ function openTrashSheet(ctx) {
         if (!ok) { openTrashSheet(ctx); return; }
         const res = restoreTrash(id);
         haptic();
-        toast(res.restored ? '已恢复 ' + res.restored + ' 条记录' : '这些记录都还在，无需恢复');
+        const subjectNote = res.subject ? '，科目「' + res.subject.name + '」已恢复' : '';
+        toast((res.restored ? '已恢复 ' + res.restored + ' 条记录' : '这些记录都还在，无需恢复') + subjectNote);
         openTrashSheet(ctx);
         ctx.refresh();
         return;

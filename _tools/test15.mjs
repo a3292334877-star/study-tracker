@@ -41,9 +41,9 @@ check('路由与统计页入口',
   appSrc.includes("import { renderReview }") && appSrc.includes('review: renderReview')
     && statsSrc.includes('data-act="year-review"'), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v34';")
-    && manifestXml.includes('android:versionCode="28"') && manifestXml.includes('android:versionName="1.29"')
-    && meSrc.includes('学习记录 v1.29'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v35';")
+    && manifestXml.includes('android:versionCode="29"') && manifestXml.includes('android:versionName="1.30"')
+    && meSrc.includes('学习记录 v1.30'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));

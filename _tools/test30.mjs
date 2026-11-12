@@ -44,13 +44,13 @@ check('统计页入口 / 样式 / SW 预载',
     && indexSrc.includes('css/parts/weekly.css')
     && swSrc.includes('./js/views/weekly.js')
     && swSrc.includes('./css/parts/weekly.css'), true);
-check('版本：sw v34 / manifest 28-1.29 / 页脚 v1.29',
-  swSrc.includes("const CACHE = 'study-tracker-v34';")
-    && manifestXml.includes('android:versionCode="28"')
-    && manifestXml.includes('android:versionName="1.29"')
-    && meSrc.includes('学习记录 v1.29'), true);
-check('README v1.29 段与 versionCode 28',
-  /^### v1\.29$/m.test(readme) && readme.includes('versionCode 28') && readme.includes('学习周报'), true);
+check('版本：sw v35 / manifest 29-1.30 / 页脚 v1.30',
+  swSrc.includes("const CACHE = 'study-tracker-v35';")
+    && manifestXml.includes('android:versionCode="29"')
+    && manifestXml.includes('android:versionName="1.30"')
+    && meSrc.includes('学习记录 v1.30'), true);
+check('README v1.30 段与 versionCode 29',
+  /^### v1\.30$/m.test(readme) && readme.includes('versionCode 29') && readme.includes('学习周报'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

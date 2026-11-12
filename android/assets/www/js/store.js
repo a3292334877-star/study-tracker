@@ -98,34 +98,49 @@ function dayBuckets() {
   return map;
 }
 
+const isPlainObject = (x) => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
 function normalize(raw) {
   const base = defaultState();
   if (!raw || typeof raw !== 'object') return base;
-  const subjects = (Array.isArray(raw.subjects) ? raw.subjects : []).map((s) => ({
-    goalMinWeek: 0,
-    archived: false,
-    ...s,
-  }));
+  const subjects = (Array.isArray(raw.subjects) ? raw.subjects : [])
+    .filter(isPlainObject)
+    .map((s) => ({
+      goalMinWeek: 0,
+      archived: false,
+      ...s,
+    }));
   return {
     ...base,
     ...raw,
-    settings: { ...base.settings, ...(raw.settings || {}) },
+    settings: { ...base.settings, ...(isPlainObject(raw.settings) ? raw.settings : {}) },
     subjects,
-    sessions: (Array.isArray(raw.sessions) ? raw.sessions : []).map((s) => ({
-      ...s,
-      tags: normTags(s.tags),
-    })),
-    templates: Array.isArray(raw.templates) ? raw.templates : [],
-    todos: (Array.isArray(raw.todos) ? raw.todos : []).map((t) => ({
-      ...t,
-      date: todoDate(t),
-      repeat: normRepeat(t.repeat),
-      subjectId: t.subjectId ? String(t.subjectId) : null,
-      doneDates: Array.isArray(t.doneDates) ? t.doneDates.filter(isDateKey) : [],
-      skipDates: Array.isArray(t.skipDates) ? t.skipDates.filter(isDateKey) : [],
-    })),
-    reviews: raw.reviews && typeof raw.reviews === 'object' ? raw.reviews : {},
-    memory: raw.memory && typeof raw.memory === 'object' ? raw.memory : {},
+    /* v1.30：旧备份 / CSV 里可能混进 null、字符串分钟、坏时间戳。
+       这里把「结构性坏值」修成安全数字，但保留 -1 / 2000 这类越界数字，
+       让数据体检还能把它们报出来并让用户决定怎么修。 */
+    sessions: (Array.isArray(raw.sessions) ? raw.sessions : [])
+      .filter(isPlainObject)
+      .map((s) => {
+        const minutesNum = Number(s.minutes);
+        const minutes = Number.isFinite(minutesNum) ? Math.round(minutesNum) : 0;
+        const endNum = Number(s.end);
+        const end = Number.isFinite(endNum) && endNum > 0 ? endNum : Date.now();
+        const startNum = Number(s.start);
+        const start = Number.isFinite(startNum) && startNum > 0 ? startNum : end - minutes * 60000;
+        return { ...s, minutes, end, start, tags: normTags(s.tags) };
+      }),
+    templates: (Array.isArray(raw.templates) ? raw.templates : []).filter(isPlainObject),
+    todos: (Array.isArray(raw.todos) ? raw.todos : [])
+      .filter(isPlainObject)
+      .map((t) => ({
+        ...t,
+        date: todoDate(t),
+        repeat: normRepeat(t.repeat),
+        subjectId: t.subjectId ? String(t.subjectId) : null,
+        doneDates: Array.isArray(t.doneDates) ? t.doneDates.filter(isDateKey) : [],
+        skipDates: Array.isArray(t.skipDates) ? t.skipDates.filter(isDateKey) : [],
+      })),
+    reviews: isPlainObject(raw.reviews) ? raw.reviews : {},
+    memory: isPlainObject(raw.memory) ? raw.memory : {},
   };
 }
 
@@ -195,6 +210,7 @@ export function estimateStorageBytes() {
   };
   add(KEY);
   add(BACKUPS_KEY);
+  add(TRASH_KEY);   // v1.30：回收站也占空间，不能漏算
   for (const item of listCorrupt()) total += item.key.length + item.size;
   return total;
 }
@@ -313,11 +329,47 @@ export function archiveSubject(id, archived = true) {
   updateSubject(id, { archived: Boolean(archived) });
 }
 export function removeSubject(id) {
+  const subject = state.subjects.find((s) => s.id === id);
+  if (!subject) return { removed: 0, subject: null };
+  const removedSessions = state.sessions.filter((s) => s.subjectId === id);
+  // v1.30：删科目前先留保护快照，记录放进回收站（30 天内可连同科目一起恢复）
+  saveBackupSnapshot('pre-subject-delete');
+  if (removedSessions.length) {
+    pushTrash(removedSessions, 'subject-delete', { subject: JSON.parse(JSON.stringify(subject)) });
+  }
   state.subjects = state.subjects.filter((s) => s.id !== id);
-  const removed = state.sessions.filter((s) => s.subjectId === id).map((s) => s.id);
   state.sessions = state.sessions.filter((s) => s.subjectId !== id);
-  removed.forEach((sid) => { delete state.memory[sid]; });
+  removedSessions.forEach((s) => { delete state.memory[s.id]; });
+  // 任务 / 模板不跟着消失，归到「未分类」，避免留下指向已删科目的悬空引用
+  state.todos.forEach((t) => { if (t.subjectId === id) t.subjectId = null; });
+  state.templates.forEach((t) => { if (t.subjectId === id) t.subjectId = null; });
   commit();
+  return { removed: removedSessions.length, subject };
+}
+
+/* v1.30：把源科目合并进目标科目：记录、任务、模板一起改挂到目标科目，
+   源科目删除。合并前留保护快照，误合并可以从备份里找回。 */
+export function mergeSubjects(sourceId, targetId) {
+  if (!sourceId || !targetId || sourceId === targetId) {
+    return { moved: 0, todos: 0, templates: 0, error: 'invalid' };
+  }
+  const source = state.subjects.find((s) => s.id === sourceId);
+  const target = state.subjects.find((s) => s.id === targetId);
+  if (!source || !target) return { moved: 0, todos: 0, templates: 0, error: 'not-found' };
+  saveBackupSnapshot('pre-subject-merge');
+  let moved = 0;
+  let todos = 0;
+  let templates = 0;
+  state.sessions.forEach((s) => { if (s.subjectId === sourceId) { s.subjectId = targetId; moved += 1; } });
+  state.todos.forEach((t) => { if (t.subjectId === sourceId) { t.subjectId = targetId; todos += 1; } });
+  state.templates.forEach((t) => { if (t.subjectId === sourceId) { t.subjectId = targetId; templates += 1; } });
+  // 目标没设周目标时，把源科目的目标带过去，避免合并后目标悄悄丢失
+  if (!(Number(target.goalMinWeek) > 0) && Number(source.goalMinWeek) > 0) {
+    target.goalMinWeek = Number(source.goalMinWeek);
+  }
+  state.subjects = state.subjects.filter((s) => s.id !== sourceId);
+  commit();
+  return { moved, todos, templates, source: source.name, target: target.name };
 }
 export function getSubject(id) {
   return state.subjects.find((s) => s.id === id) || null;
@@ -568,11 +620,17 @@ export function lastNDays(n, endDate = new Date()) {
   }
   return days;
 }
+/* v1.30：一条记录只要存在就算「这天学过」，不要求 minutes > 0。
+   产品允许多条 0 分钟的记录（只记内容不记时长），连续天数应按记录算。 */
+export function hasRecordOn(key) {
+  const bucket = dayBuckets().get(key);
+  return Boolean(bucket && bucket.count > 0);
+}
 export function streak() {
   let n = 0;
   let cursor = new Date();
-  if (minutesOfDay(dateKey(cursor)) === 0) cursor = addDays(cursor, -1);
-  while (minutesOfDay(dateKey(cursor)) > 0) {
+  if (!hasRecordOn(dateKey(cursor))) cursor = addDays(cursor, -1);
+  while (hasRecordOn(dateKey(cursor))) {
     n += 1;
     cursor = addDays(cursor, -1);
   }
@@ -1004,10 +1062,7 @@ export function bestDay() {
 }
 /* 历史最长连续记录天数 */
 export function longestStreak() {
-  const keys = [...dayMinutesMap().entries()]
-    .filter(([, m]) => m > 0)
-    .map(([k]) => k)
-    .sort();
+  const keys = [...dayBuckets().keys()].sort();
   let best = 0;
   let run = 0;
   let prev = null;
@@ -1263,7 +1318,7 @@ export function calendarYear(year) {
     goalMetDays += m.metDays;
   });
 
-  const keys = [...dayMap.entries()].filter(([, v]) => v.min > 0).map(([k]) => k).sort();
+  const keys = [...dayMap.keys()].sort();
   let longest = 0;
   let run = 0;
   let prev = null;
@@ -1789,10 +1844,12 @@ export function hasDemoData() {
 export function resetAll() {
   saveBackupSnapshot('pre-clear');   // v1.6：清空前先留一份，别让「不可恢复」变成真的
   clearTrash();                      // v1.27：清空所有数据也包括回收站里的旧副本
+  clearCorrupt();                    // v1.30：损坏留档也属于旧数据，一起清掉
   state = defaultState();
   state.seeded = true;   // 用户主动清空后，不再自动灌入示例数据
+  invalidateAggregates();             // v1.30：清空后缓存必须失效，否则统计/记录还显示旧数据
   save();
-  listeners.forEach((fn) => fn(state));
+  listeners.forEach((fn) => { try { fn(state); } catch (err) { console.error(err); } });
 }
 
 export function exportJSON() {
@@ -2077,6 +2134,8 @@ function backupLabel(reason) {
   if (reason === 'pre-batch') return '删除前保护';
   if (reason === 'pre-tag') return '标签操作前保护';
   if (reason === 'pre-audit') return '体检修复前保护';
+  if (reason === 'pre-subject-delete') return '删除科目保护';
+  if (reason === 'pre-subject-merge') return '合并科目保护';
   return '手动备份';
 }
 export function saveBackupSnapshot(reason = 'manual', name = '') {
@@ -2167,12 +2226,13 @@ export function trashStats() {
   };
 }
 export function trashCount() { return trashStats().count; }
-export function pushTrash(sessions, reason = 'delete') {
+export function pushTrash(sessions, reason = 'delete', extra = {}) {
   const arr = (Array.isArray(sessions) ? sessions : [])
     .filter((s) => s && s.id)
     .map((s) => JSON.parse(JSON.stringify(s)));
   if (!arr.length) return null;
   const item = {
+    ...(extra && typeof extra === 'object' ? extra : {}),
     id: uid(),
     at: Date.now(),
     reason: String(reason || 'delete'),
@@ -2203,6 +2263,13 @@ export function restoreTrash(id) {
   const batch = raw[idx];
   let restored = 0;
   let skipped = 0;
+  let restoredSubject = null;
+  // v1.30：删除科目时回收站里存了科目本身，恢复记录前先把科目放回去
+  if (batch.subject && batch.subject.id && !state.subjects.some((x) => x.id === batch.subject.id)) {
+    const sub = { goalMinWeek: 0, archived: false, ...JSON.parse(JSON.stringify(batch.subject)) };
+    state.subjects.push(sub);
+    restoredSubject = sub;
+  }
   (Array.isArray(batch.sessions) ? batch.sessions : []).forEach((s) => {
     if (!s || !s.id) return;
     if (state.sessions.some((x) => x.id === s.id)) { skipped += 1; return; }
@@ -2212,7 +2279,7 @@ export function restoreTrash(id) {
   raw.splice(idx, 1);
   writeTrash(raw);
   commit();
-  return { restored, skipped };
+  return { restored, skipped, subject: restoredSubject };
 }
 export function removeTrash(id) {
   const raw = readTrashRaw();

@@ -1,6 +1,6 @@
 /* 科目视图：按科目看「学了什么」 */
 import {
-  getState, addSubject, updateSubject, removeSubject, archiveSubject,
+  getState, addSubject, updateSubject, removeSubject, archiveSubject, mergeSubjects,
   COLORS, EMOJIS, lastNDays, activeSubjects, archivedSubjects,
 } from '../store.js';
 import {
@@ -121,6 +121,7 @@ export function renderSubjects(ctx) {
       </div>
       <div class="sheet-actions">
         ${isNew ? '' : `<button class="btn" type="button" data-act="archive">${data.archived ? '恢复使用' : '归档'}</button>`}
+        ${isNew ? '' : '<button class="btn" type="button" data-act="merge">合并…</button>'}
         ${isNew ? '' : '<button class="btn danger" type="button" data-act="delete">删除</button>'}
         <button class="btn primary" type="button" data-act="save">保存</button>
       </div>
@@ -171,6 +172,8 @@ export function renderSubjects(ctx) {
           ctx.refresh();
         });
       }
+      const mergeBtn = sheet.querySelector('[data-act="merge"]');
+      if (mergeBtn) mergeBtn.addEventListener('click', () => openMergeSheet(subject));
       const del = sheet.querySelector('[data-act="delete"]');
       if (del) {
         del.addEventListener('click', () => {
@@ -182,7 +185,10 @@ export function renderSubjects(ctx) {
           const tip = document.createElement('p');
           tip.className = 'hint';
           tip.style.margin = '0 0 12px';
-          tip.textContent = '该科目下的所有学习记录会一起删除，不可恢复。';
+          const recordCount = getState().sessions.filter((s) => s.subjectId === subject.id).length;
+          tip.textContent = recordCount
+            ? '该科目下的 ' + recordCount + ' 条学习记录会移入回收站，保留 30 天，可随时恢复。'
+            : '该科目下还没有学习记录，删除后不可恢复。';
           actions.parentNode.insertBefore(tip, actions);
           actions.querySelector('[data-act="cancel-del"]').addEventListener('click', () => openEditor(subject));
           actions.querySelector('[data-act="do-del"]').addEventListener('click', () => {
@@ -194,6 +200,52 @@ export function renderSubjects(ctx) {
         });
       }
       setTimeout(() => sheet.querySelector('#sub-name')?.focus(), 120);
+    });
+  }
+
+  /* v1.30：把当前科目合并到另一个科目，记录/任务/模板一起迁移 */
+  function openMergeSheet(source) {
+    const others = getState().subjects.filter((s) => s.id !== source.id);
+    if (!others.length) { toast('至少需要另一个科目才能合并'); return; }
+    const recordCount = getState().sessions.filter((s) => s.subjectId === source.id).length;
+    const body = `
+      <h2 class="sheet-title">合并「${esc(source.name)}」到…</h2>
+      <p class="sheet-desc">「${esc(source.name)}」的 ${recordCount} 条记录、相关任务和模板会移到目标科目，然后源科目被删除。合并前会自动存一份快照。</p>
+      <div class="list">
+        ${others.map((t) => `
+          <button class="row" type="button" data-merge-target="${t.id}">
+            <div class="row-ic" style="background:${t.color}18;color:${t.color}">${t.emoji}</div>
+            <div class="row-main">
+              <div class="row-title">${esc(t.name)}${t.archived ? ' <span class="hint" style="font-weight:400">已归档</span>' : ''}</div>
+              <div class="row-sub">点这里作为合并目标</div>
+            </div>
+            <div class="row-val">›</div>
+          </button>`).join('')}
+      </div>
+      <div class="sheet-actions">
+        <button class="btn" type="button" data-act="close">取消</button>
+      </div>
+    `;
+    openSheet(body, (sheet) => {
+      sheet.querySelector('[data-act="close"]').addEventListener('click', closeSheet);
+      sheet.querySelectorAll('[data-merge-target]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const target = getState().subjects.find((x) => x.id === btn.dataset.mergeTarget);
+          if (!target) return;
+          const ok = await confirmSheet({
+            title: '合并到「' + target.name + '」？',
+            desc: '「' + source.name + '」的 ' + recordCount + ' 条记录会移到「' + target.name + '」，合并后「' + source.name + '」不再存在。',
+            okText: '合并',
+            danger: true,
+          });
+          if (!ok) { openMergeSheet(source); return; }
+          const res = mergeSubjects(source.id, target.id);
+          closeSheet();
+          haptic();
+          toast('已合并 ' + res.moved + ' 条记录到「' + target.name + '」');
+          ctx.refresh();
+        });
+      });
     });
   }
 
