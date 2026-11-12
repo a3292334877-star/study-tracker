@@ -48,6 +48,7 @@ const defaultState = () => ({
   templates: [],
   todos: [],
   reviews: {},
+  memory: {},
   demo: false,
   seeded: false,
   createdAt: Date.now(),
@@ -118,6 +119,7 @@ function normalize(raw) {
       skipDates: Array.isArray(t.skipDates) ? t.skipDates.filter(isDateKey) : [],
     })),
     reviews: raw.reviews && typeof raw.reviews === 'object' ? raw.reviews : {},
+    memory: raw.memory && typeof raw.memory === 'object' ? raw.memory : {},
   };
 }
 
@@ -306,7 +308,9 @@ export function archiveSubject(id, archived = true) {
 }
 export function removeSubject(id) {
   state.subjects = state.subjects.filter((s) => s.id !== id);
+  const removed = state.sessions.filter((s) => s.subjectId === id).map((s) => s.id);
   state.sessions = state.sessions.filter((s) => s.subjectId !== id);
+  removed.forEach((sid) => { delete state.memory[sid]; });
   commit();
 }
 export function getSubject(id) {
@@ -366,6 +370,7 @@ export function removeSession(id) {
   const idx = state.sessions.findIndex((s) => s.id === id);
   if (idx < 0) return null;
   const [removed] = state.sessions.splice(idx, 1);
+  delete state.memory[id];
   commit();
   return removed;
 }
@@ -377,6 +382,7 @@ export function removeSessions(ids) {
   if (!removed.length) return [];
   saveBackupSnapshot('pre-batch');
   state.sessions = state.sessions.filter((s) => !set.has(s.id));
+  ids.forEach((id) => { delete state.memory[id]; });
   commit();
   return removed;
 }
@@ -1036,6 +1042,87 @@ export function getReview(key) {
   return state.reviews[key] || {};
 }
 
+/* ---------- 笔记回顾（v1.21） ----------
+   把写过心得的记录按间隔重复出现：首次 1 天后，之后 3 / 7 / 15 / 30 / 60 / 120 / 240 天。
+   只读 state.memory 里的 { count, lastAt }，不改动记录本身。 */
+export const REVIEW_INTERVALS = [1, 3, 7, 15, 30, 60, 120, 240];
+const REVIEW_DAY_MS = 24 * 60 * 60 * 1000;
+
+export function hasReviewNote(session) {
+  return Boolean(session && String(session.note || '').trim());
+}
+
+function reviewEntry(id) {
+  const m = state.memory[id];
+  return m && typeof m === 'object' ? m : null;
+}
+
+/* 一条记录当前处于第几次回顾、下次什么时候到期 */
+export function reviewInfo(session, now = Date.now()) {
+  if (!session) return null;
+  const mem = reviewEntry(session.id) || {};
+  const count = Math.max(0, Math.round(Number(mem.count) || 0));
+  const lastAt = Number(mem.lastAt) || 0;
+  const anchor = lastAt || Number(session.end) || now;
+  const intervalDays = REVIEW_INTERVALS[Math.min(count, REVIEW_INTERVALS.length - 1)];
+  const dueAt = anchor + intervalDays * REVIEW_DAY_MS;
+  return { count, lastAt, intervalDays, dueAt, due: now >= dueAt };
+}
+
+/* 今天该回顾的记录，按到期时间从早到晚 */
+export function reviewQueue(now = Date.now()) {
+  return state.sessions
+    .filter(hasReviewNote)
+    .map((session) => ({ session, info: reviewInfo(session, now) }))
+    .filter((x) => x.info && x.info.due)
+    .sort((a, b) => a.info.dueAt - b.info.dueAt || a.session.end - b.session.end);
+}
+
+/* 全部带心得的笔记（含未到期），用于「全部笔记」列表 */
+export function reviewNoteList(now = Date.now()) {
+  return state.sessions
+    .filter(hasReviewNote)
+    .map((session) => ({ session, info: reviewInfo(session, now) }))
+    .sort((a, b) => a.info.dueAt - b.info.dueAt || a.session.end - b.session.end);
+}
+
+export function reviewStats(now = Date.now()) {
+  const noted = state.sessions.filter(hasReviewNote);
+  const today = dateKey(new Date(now));
+  let reviewedTotal = 0;
+  let reviewedToday = 0;
+  let upcoming = 0;
+  noted.forEach((s) => {
+    const info = reviewInfo(s, now);
+    const mem = reviewEntry(s.id);
+    if (mem) {
+      reviewedTotal += Math.max(0, Math.round(Number(mem.count) || 0));
+      if (Number(mem.lastAt) && dateKey(new Date(Number(mem.lastAt))) === today) reviewedToday += 1;
+    }
+    if (info && !info.due) upcoming += 1;
+  });
+  return {
+    totalNotes: noted.length,
+    due: reviewQueue(now).length,
+    reviewedTotal,
+    reviewedToday,
+    upcoming,
+  };
+}
+
+/* 标记一次回顾完成：次数 +1，下一次按新的间隔顺延 */
+export function markReviewed(id, now = Date.now()) {
+  const session = getSession(id);
+  if (!session) return null;
+  const mem = reviewEntry(id) || { count: 0, lastAt: 0 };
+  state.memory[id] = {
+    count: Math.max(0, Math.round(Number(mem.count) || 0)) + 1,
+    lastAt: now,
+  };
+  commit();
+  return reviewInfo(session, now);
+}
+
 /* ---------- 计时器持久化 ---------- */
 export function loadTimer() {
   try {
@@ -1145,6 +1232,7 @@ function seedDemo() {
 /* 移除示例数据：只删带 demo 标记的记录与任务，用户自己加的统统保留 */
 export function clearDemo() {
   const removed = state.sessions.filter((s) => s.demo).length;
+  state.sessions.filter((s) => s.demo).forEach((s) => { delete state.memory[s.id]; });
   state.sessions = state.sessions.filter((s) => !s.demo);
   state.todos = state.todos.filter((t) => !t.demo);
   state.demo = false;
@@ -1212,6 +1300,7 @@ function mergeState(incoming) {
     todoTexts.add(t.text);
   });
   state.reviews = { ...incoming.reviews, ...state.reviews };
+  state.memory = { ...incoming.memory, ...state.memory };
   state.seeded = true;
   commit();
   return {

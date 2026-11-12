@@ -1,6 +1,6 @@
 /* 今日视图：今天学了什么 + 今天的任务 */
 import {
-  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, setTodoDone, removeTodo, lastNDays, todosOfDay, repeatLabel, getSubject,
+  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, setTodoDone, removeTodo, lastNDays, todosOfDay, repeatLabel, getSubject, reviewStats,
 } from '../store.js';
 import {
   esc, fmtMin, fmtMinShort, dateKey, weekdayCN, monthDayCN, haptic,
@@ -31,6 +31,7 @@ export function renderHome(ctx) {
   const left = Math.max(0, goal - todayMin);
   const todos = todosOfDay(todayKey);
   const doneTodos = todos.filter((t) => t.done).length;
+  const mem = reviewStats();
 
   const sub = `${weekdayCN(now)} · ${monthDayCN(now)}`;
 
@@ -51,6 +52,17 @@ export function renderHome(ctx) {
       <div class="stat"><b>${fmtMin(weekMin).value}<small>${fmtMin(weekMin).unit}</small></b><span>近 7 天</span></div>
       <div class="stat"><b>${sessions.length}<small>条</small></b><span>今日记录</span></div>
     </div>
+
+    <section class="card fade-in memory-entry" style="padding:0">
+      <button class="row" type="button" data-go-memory style="padding:14px 16px">
+        <div class="row-ic" style="background:var(--primary-soft);color:var(--primary)">🔁</div>
+        <div class="row-main">
+          <div class="row-title">笔记回顾</div>
+          <div class="row-sub">${mem.due ? `${mem.due} 条笔记今天该回顾` : (mem.totalNotes ? '今天的回顾已完成，明天再来' : '记录时写心得，之后自动按间隔复习')}</div>
+        </div>
+        <div class="row-val" style="color:${mem.due ? 'var(--primary)' : 'var(--text-3)'}">${mem.due ? mem.due + ' 条' : '›'}</div>
+      </button>
+    </section>
 
     <section class="fade-in" style="margin-bottom:4px">
       <div class="card-title" style="padding:0 6px">
@@ -102,6 +114,8 @@ export function renderHome(ctx) {
         openRecordSheet({ onChange: () => ctx.refresh() });
       });
     });
+    const memBtn = root.querySelector('[data-go-memory]');
+    if (memBtn) memBtn.addEventListener('click', () => { haptic(); ctx.go('#/memory'); });
     root.querySelectorAll('[data-act="record-todo"]').forEach((el) => {
       el.addEventListener('click', () => {
         const row = el.closest('[data-todo]');

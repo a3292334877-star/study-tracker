@@ -123,6 +123,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">标签管理</div><div class="row-sub">${tagStats().length} 个标签 · 重命名 / 合并 / 删除</div></div>
         <div class="row-chev">›</div>
       </button>
+      <button class="row" type="button" data-act="memory">
+        <div class="row-ic">🔁</div>
+        <div class="row-main"><div class="row-title">笔记回顾</div><div class="row-sub">按间隔重温写过心得的记录</div></div>
+        <div class="row-chev">›</div>
+      </button>
       <button class="row" type="button" data-act="plan">
         <div class="row-ic">🗓️</div>
         <div class="row-main"><div class="row-title">学习计划</div><div class="row-sub">本周 ${weekPlan.total} 项任务 · 按天安排</div></div>
@@ -200,7 +205,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.20 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.21 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -215,6 +220,7 @@ export function renderMe(ctx) {
     if (drRow) drRow.addEventListener('click', () => openDailyReminderSheet(ctx));
     root.querySelector('[data-act="subjects"]').addEventListener('click', () => ctx.go('#/subjects'));
     root.querySelector('[data-act="timer"]').addEventListener('click', () => ctx.go('#/timer'));
+    root.querySelector('[data-act="memory"]').addEventListener('click', () => ctx.go('#/memory'));
     const planRow = root.querySelector('[data-act="plan"]');
     if (planRow) planRow.addEventListener('click', () => ctx.go('#/plan'));
     const achRow = root.querySelector('[data-act="achievements"]');

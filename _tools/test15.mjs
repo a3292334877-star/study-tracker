@@ -40,10 +40,10 @@ check('年度回顾视图',
 check('路由与统计页入口',
   appSrc.includes("import { renderReview }") && appSrc.includes('review: renderReview')
     && statsSrc.includes('data-act="year-review"'), true);
-check('版本：sw v25 / manifest 19-1.20 / 页脚 v1.20',
-  swSrc.includes("const CACHE = 'study-tracker-v25';")
-    && manifestXml.includes('android:versionCode="19"') && manifestXml.includes('android:versionName="1.20"')
-    && meSrc.includes('学习记录 v1.20'), true);
+check('版本：sw v26 / manifest 20-1.21 / 页脚 v1.21',
+  swSrc.includes("const CACHE = 'study-tracker-v26';")
+    && manifestXml.includes('android:versionCode="20"') && manifestXml.includes('android:versionName="1.21"')
+    && meSrc.includes('学习记录 v1.21'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));
