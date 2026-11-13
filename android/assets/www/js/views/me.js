@@ -6,7 +6,7 @@ import {
   clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
   tagStats, renameTag, removeTag, importSessions,
   auditData, dedupeSessions, reassignOrphanSessions, fixAbnormalMinutes,
-  achievementStats, planWeek, goalOverview, getTemplates,
+  achievementStats, planWeek, goalOverview, getTemplates, todoOverview,
 } from '../store.js';
 import {
   applyTheme, openSheet, closeSheet, toast, fmtMinShort, dateKey,
@@ -33,6 +33,7 @@ export function renderMe(ctx) {
   const weekPlan = planWeek(dateKey(new Date()));
   const goals = goalOverview();
   const tplCount = getTemplates().length;
+  const todoOv = todoOverview();
 
   const html = `
     <section class="card fade-in" style="display:flex;align-items:center;gap:14px">
@@ -145,6 +146,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">笔记回顾</div><div class="row-sub">按间隔重温写过心得的记录</div></div>
         <div class="row-chev">›</div>
       </button>
+      <button class="row" type="button" data-act="todos">
+        <div class="row-ic">🗒️</div>
+        <div class="row-main"><div class="row-title">任务中心</div><div class="row-sub">${todoOv.overdue ? `${todoOv.overdue} 项逾期 · ` : ''}今日 ${todoOv.todayPending} 项待办 · 跨周查看</div></div>
+        <div class="row-val" style="color:${todoOv.overdue ? 'var(--danger)' : 'var(--text-3)'}">${todoOv.overdue ? todoOv.overdue + ' 逾期' : '›'}</div>
+      </button>
       <button class="row" type="button" data-act="plan">
         <div class="row-ic">🗓️</div>
         <div class="row-main"><div class="row-title">学习计划</div><div class="row-sub">本周 ${weekPlan.total} 项任务 · 按天安排</div></div>
@@ -236,7 +242,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.31 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.32 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -256,6 +262,8 @@ export function renderMe(ctx) {
     root.querySelector('[data-act="memory"]').addEventListener('click', () => ctx.go('#/memory'));
     const goalsRow = root.querySelector('[data-act="goals"]');
     if (goalsRow) goalsRow.addEventListener('click', () => ctx.go('#/goals'));
+    const todosRow = root.querySelector('[data-act="todos"]');
+    if (todosRow) todosRow.addEventListener('click', () => ctx.go('#/todos'));
     const planRow = root.querySelector('[data-act="plan"]');
     if (planRow) planRow.addEventListener('click', () => ctx.go('#/plan'));
     const insightsRow = root.querySelector('[data-act="insights"]');

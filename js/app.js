@@ -18,6 +18,7 @@ import { renderMonthly } from './views/monthly.js';
 import { renderInsights } from './views/insights.js';
 import { renderWeekly } from './views/weekly.js';
 import { renderTemplates } from './views/templates.js';
+import { renderTodos } from './views/todos.js';
 import { renderMe } from './views/me.js';
 import { openRecordSheet } from './sheets.js';
 
@@ -37,6 +38,7 @@ const ROUTES = {
   insights: renderInsights,
   weekly: renderWeekly,
   templates: renderTemplates,
+  todos: renderTodos,
   me: renderMe,
 };
 

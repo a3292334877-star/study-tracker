@@ -16,7 +16,7 @@ const REPEAT_OPTIONS = [
 ];
 
 /* 添加任务弹层：任务内容 + 重复频率 + 可选科目，返回 { text, repeat, subjectId } 或 null */
-function openAddTask(key) {
+export function openAddTask(key) {
   const d = parseKey(key);
   const subjects = activeSubjects();
   return new Promise((resolve) => {
@@ -91,7 +91,7 @@ function openAddTask(key) {
 }
 
 /* 删除重复任务：返回 'skip' | 'all' | null */
-function openRepeatDeleteSheet(text, repeat, key) {
+export function openRepeatDeleteSheet(text, repeat, key) {
   const d = parseKey(key);
   return new Promise((resolve) => {
     let done = false;

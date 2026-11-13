@@ -1646,6 +1646,72 @@ export function copyWeekTodos(fromAnchor, toAnchor) {
   return added;
 }
 
+/* ---------- 任务中心（v1.32）：跨天查看全部任务 ---------- */
+/* 把一个日期区间内每天的任务摊平成「某天的一条」，供任务中心列表使用。
+   重复任务按天投影，未跨出 repeatEnd。区间最多展开 400 天，避免误传日期卡死。 */
+export function taskOccurrences(fromKey, toKey) {
+  const out = [];
+  if (!isDateKey(fromKey) || !isDateKey(toKey)) return out;
+  const end = parseKey(toKey);
+  let d = parseKey(fromKey);
+  for (let guard = 0; d <= end && guard < 400; guard += 1, d = addDays(d, 1)) {
+    const key = dateKey(d);
+    todosOfDay(key).forEach((t) => out.push({ ...t, occurrence: key }));
+  }
+  return out;
+}
+/* 逾期任务：只看不重复的任务（重复任务每天都会出现，逐日算逾期会淹没列表），
+   默认回看 180 天，按日期从早到晚。 */
+export function overdueTodos(maxDays = 180) {
+  const today = dateKey(new Date());
+  const days = Math.max(1, Math.round(Number(maxDays) || 180));
+  const start = dateKey(addDays(new Date(), -days));
+  return state.todos
+    .filter((t) => normRepeat(t.repeat) === 'none' && !t.done)
+    .map((t) => ({ ...t, occurrence: todoDate(t), done: false }))
+    .filter((t) => t.occurrence < today && t.occurrence >= start)
+    .sort((a, b) => (a.occurrence < b.occurrence ? -1 : a.occurrence > b.occurrence ? 1 : 0));
+}
+/* 重复任务在任务中心只展示「下一次还没做的那天」，避免每天投影出几十条 */
+export function nextTodoOccurrences(fromKey, maxDays = 60) {
+  const out = [];
+  const start = isDateKey(fromKey) ? fromKey : dateKey(new Date());
+  const days = Math.max(1, Math.round(Number(maxDays) || 60));
+  state.todos.forEach((t) => {
+    if (normRepeat(t.repeat) === 'none') return;
+    let d = parseKey(start);
+    for (let i = 0; i <= days; i += 1, d = addDays(d, 1)) {
+      const key = dateKey(d);
+      const occ = todosOfDay(key).find((x) => x.id === t.id);
+      if (occ && !occ.done) {
+        out.push(occ);
+        break;
+      }
+    }
+  });
+  return out;
+}
+/* 把一条不重复的任务顺延到指定日期（逾期任务顺延到今天用） */
+export function rescheduleTodo(id, toKey) {
+  const t = state.todos.find((x) => x.id === id);
+  if (!t || normRepeat(t.repeat) !== 'none' || !isDateKey(toKey)) return false;
+  t.date = toKey;
+  t.done = false;
+  commit();
+  return true;
+}
+/* 任务中心概览：今日待办、逾期条数、未来一周待办，供首页入口显示 */
+export function todoOverview() {
+  const today = dateKey(new Date());
+  const weekEnd = dateKey(addDays(new Date(), 7));
+  const todayPending = todosOfDay(today).filter((t) => !t.done).length;
+  const overdue = overdueTodos(180).length;
+  const upcoming = taskOccurrences(dateKey(addDays(new Date(), 1)), weekEnd)
+    .filter((t) => !t.done && normRepeat(t.repeat) === 'none').length
+    + nextTodoOccurrences(dateKey(addDays(new Date(), 1)), 7).filter((t) => t.occurrence <= weekEnd).length;
+  return { todayPending, overdue, upcoming, total: todayPending + overdue + upcoming };
+}
+
 /* ---------- 设置 / 复盘 ---------- */
 export function setSetting(key, value) {
   state.settings[key] = value;

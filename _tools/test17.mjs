@@ -43,9 +43,9 @@ check('日历路由与统计页入口',
   appSrc.includes("import { renderCalendar }") && appSrc.includes('calendar: renderCalendar')
     && statsSrc.includes('id="calendar-card"') && statsSrc.includes('data-act="calendar"'), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24 / 资源',
-  swSrc.includes("const CACHE = 'study-tracker-v37';")
-    && manifestXml.includes('android:versionCode="31"') && manifestXml.includes('android:versionName="1.31"')
-    && meSrc.includes('学习记录 v1.31')
+  swSrc.includes("const CACHE = 'study-tracker-v38';")
+    && manifestXml.includes('android:versionCode="32"') && manifestXml.includes('android:versionName="1.32"')
+    && meSrc.includes('学习记录 v1.32')
     && swSrc.includes('./js/views/calendar.js') && swSrc.includes('./css/parts/calendar.css')
     && indexHtml.includes('css/parts/calendar.css'), true);
 

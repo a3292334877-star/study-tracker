@@ -1,6 +1,6 @@
 /* 今日视图：今天学了什么 + 今天的任务 */
 import {
-  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, setTodoDone, removeTodo, lastNDays, todosOfDay, repeatLabel, getSubject, reviewStats, goalOverview,
+  getState, sessionsOfDay, minutesOfDay, streak, addTodo, toggleTodo, setTodoDone, removeTodo, lastNDays, todosOfDay, repeatLabel, getSubject, reviewStats, goalOverview, todoOverview,
 } from '../store.js';
 import {
   esc, fmtMin, fmtMinShort, dateKey, weekdayCN, monthDayCN, haptic,
@@ -32,6 +32,7 @@ export function renderHome(ctx) {
   const todos = todosOfDay(todayKey);
   const doneTodos = todos.filter((t) => t.done).length;
   const mem = reviewStats();
+  const todoOv = todoOverview();
   const weeklyGoal = goalOverview().weekly;
   const weekGoalSub = weeklyGoal.target > 0
     ? `${fmtMinShort(weeklyGoal.actual)} / ${fmtMinShort(weeklyGoal.target)} · ${weeklyGoal.met ? '已达成' : '还差 ' + fmtMinShort(weeklyGoal.remaining)}`
@@ -78,6 +79,17 @@ export function renderHome(ctx) {
         <div class="row-val" style="color:${mem.due ? 'var(--primary)' : 'var(--text-3)'}">${mem.due ? mem.due + ' 条' : '›'}</div>
       </button>
     </section>
+
+    ${todoOv.overdue ? `<section class="card fade-in todo-entry" style="padding:0">
+      <button class="row" type="button" data-go-todos style="padding:14px 16px">
+        <div class="row-ic" style="background:color-mix(in srgb, var(--danger) 12%, transparent);color:var(--danger)">⏰</div>
+        <div class="row-main">
+          <div class="row-title">有 ${todoOv.overdue} 项任务逾期了</div>
+          <div class="row-sub">去任务中心看看，可以一键顺延到今天</div>
+        </div>
+        <div class="row-val" style="color:var(--danger)">处理 ›</div>
+      </button>
+    </section>` : ''}
 
     <section class="fade-in" style="margin-bottom:4px">
       <div class="card-title" style="padding:0 6px">
@@ -133,6 +145,8 @@ export function renderHome(ctx) {
     if (memBtn) memBtn.addEventListener('click', () => { haptic(); ctx.go('#/memory'); });
     const goalBtn = root.querySelector('[data-go-goals]');
     if (goalBtn) goalBtn.addEventListener('click', () => { haptic(); ctx.go('#/goals'); });
+    const todosEntry = root.querySelector('[data-go-todos]');
+    if (todosEntry) todosEntry.addEventListener('click', () => { haptic(); ctx.go('#/todos'); });
     root.querySelectorAll('[data-act="record-todo"]').forEach((el) => {
       el.addEventListener('click', () => {
         const row = el.closest('[data-todo]');

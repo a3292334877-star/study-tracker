@@ -1,0 +1,20 @@
+/* 任务中心（v1.32） */
+.todo-seg { margin-bottom: 12px; }
+.todo-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 2px 12px; }
+.todo-toolbar .hint { margin: 0; }
+.todo-add { height: 36px; padding: 0 14px; border-radius: 12px; font-size: 13px; box-shadow: none; }
+.todo-group { margin-bottom: 16px; }
+.todo-group-head { display: flex; align-items: center; gap: 8px; padding: 0 6px 7px; font-size: 13px; font-weight: 700; color: var(--text-2); }
+.todo-group-count { margin-left: auto; font-size: 11.5px; font-weight: 600; color: var(--text-3); }
+.todo-overdue { font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
+.todo-group-card { padding: 4px 14px; }
+.todo-task.is-overdue .plan-title { color: var(--text-2); }
+.todo-resched { flex: none; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-soft); border: 0; border-radius: 8px; padding: 5px 8px; cursor: pointer; }
+.todo-resched:hover { filter: brightness(.97); }
+.todo-empty { padding: 30px 18px; text-align: center; }
+.todo-empty .em { font-size: 30px; display: block; margin-bottom: 8px; }
+.todo-empty p { color: var(--text-3); font-size: 13px; margin: 0; }
+@media (max-width: 350px) {
+  .todo-toolbar { flex-wrap: wrap; }
+  .todo-add { width: 100%; }
+}

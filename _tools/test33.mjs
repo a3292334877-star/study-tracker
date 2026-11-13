@@ -37,11 +37,11 @@ check('记一笔表单有「管理模板」入口',
   sheetSrc.includes('data-act="tpl-manage"') && sheetSrc.includes("location.hash = '#/templates'"), true);
 check('模板样式表已接入 index.html',
   htmlSrc.includes('css/parts/templates.css'), true);
-check('版本：sw v37 / manifest 31-1.31 / 页脚 v1.31',
-  swSrc.includes("const CACHE = 'study-tracker-v37';")
-    && manifestXml.includes('android:versionCode="31"')
-    && manifestXml.includes('android:versionName="1.31"')
-    && meSrc.includes('学习记录 v1.31'), true);
+check('版本：sw v38 / manifest 32-1.32 / 页脚 v1.32',
+  swSrc.includes("const CACHE = 'study-tracker-v38';")
+    && manifestXml.includes('android:versionCode="32"')
+    && manifestXml.includes('android:versionName="1.32"')
+    && meSrc.includes('学习记录 v1.32'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
