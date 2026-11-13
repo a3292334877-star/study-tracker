@@ -90,3 +90,8 @@
 
 /* 批量改科目的弹层列表 */
 .batch-subjects{display:flex;flex-direction:column;max-height:46vh;overflow-y:auto;margin:0 -4px}
+/* ---------- v1.36 自定义时间范围弹层 ---------- */
+.range-quick{margin-bottom:16px}
+.range-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.range-fields .field{margin-bottom:8px}
+@media (max-width:340px){.range-fields{grid-template-columns:1fr}}

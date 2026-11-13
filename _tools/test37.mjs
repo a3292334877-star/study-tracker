@@ -38,11 +38,11 @@ check('任务中心接入批量模式与一键顺延',
 check('任务中心批量样式',
   cssSrc.includes('#todos-body.selecting .todo-task') && cssSrc.includes('.todo-pick')
     && cssSrc.includes('.todo-batch-bar') && cssSrc.includes('.todo-tools'), true);
-check('版本：sw v41 / manifest 35-1.35 / 页脚 v1.35',
-  swSrc.includes("const CACHE = 'study-tracker-v41';")
-    && manifestXml.includes('android:versionCode="35"')
-    && manifestXml.includes('android:versionName="1.35"')
-    && meSrc.includes('学习记录 v1.35'), true);
+check('版本：sw v42 / manifest 36-1.36 / 页脚 v1.36',
+  swSrc.includes("const CACHE = 'study-tracker-v42';")
+    && manifestXml.includes('android:versionCode="36"')
+    && manifestXml.includes('android:versionName="1.36"')
+    && meSrc.includes('学习记录 v1.36'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

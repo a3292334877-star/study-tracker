@@ -59,6 +59,7 @@ const FILTERS = [
   { key: 'all', label: '全部' },
   { key: 'week', label: '近 7 天' },
   { key: 'month', label: '本月' },
+  { key: 'custom', label: '自定义' },
 ];
 
 export function renderLog(ctx) {
@@ -137,7 +138,9 @@ export function renderLog(ctx) {
     const input = root.querySelector('#log-q');
     const clr = root.querySelector('#log-clr');
 
-    let range = 'all';      // 时间范围：all / week / month
+    let range = 'all';      // 时间范围：all / week / month / custom
+    let customFrom = '';    // 自定义范围开始日期（YYYY-MM-DD）
+    let customTo = '';      // 自定义范围结束日期（含当天）
     let query = '';         // 搜索词
     let subjectId = null;   // 科目筛选
     let tag = null;         // 标签筛选
@@ -157,6 +160,9 @@ export function renderLog(ctx) {
       if (range === 'week') return { fromKey: dateKey(addDays(now, -6)), toKey: dateKey(now) };
       if (range === 'month') {
         return { fromKey: dateKey(new Date(now.getFullYear(), now.getMonth(), 1)), toKey: dateKey(now) };
+      }
+      if (range === 'custom' && customFrom && customTo) {
+        return { fromKey: customFrom, toKey: customTo };
       }
       return {};
     }
@@ -314,11 +320,75 @@ export function renderLog(ctx) {
       subjectId = null;
       tag = null;
       range = 'all';
+      customFrom = '';
+      customTo = '';
       syncRange();
       syncRail('subject');
       syncRail('tag');
       paint();
       input.focus();
+    }
+
+    /* ---------- v1.36 自定义时间范围 ---------- */
+    function openCustomRange() {
+      const now = new Date();
+      const today = dateKey(now);
+      const defFrom = customFrom || dateKey(new Date(now.getFullYear(), now.getMonth(), 1));
+      const defTo = customTo || today;
+      openSheet(`
+        <h2 class="sheet-title">自定义时间范围</h2>
+        <p class="sheet-desc">只显示开始到结束日期之间的记录，结束日期当天也算在内。</p>
+        <div class="chips range-quick" id="range-quick">
+          <button class="chip chip-sm" type="button" data-preset="d30">近 30 天</button>
+          <button class="chip chip-sm" type="button" data-preset="lastMonth">上月</button>
+          <button class="chip chip-sm" type="button" data-preset="year">今年</button>
+        </div>
+        <div class="range-fields">
+          <div class="field"><label for="range-from">开始日期</label><input class="input" id="range-from" type="date" max="${today}" value="${defFrom}" /></div>
+          <div class="field"><label for="range-to">结束日期</label><input class="input" id="range-to" type="date" max="${today}" value="${defTo}" /></div>
+        </div>
+        <div class="sheet-actions">
+          <button class="btn" type="button" data-act="cancel">取消</button>
+          <button class="btn primary" type="button" data-act="apply">应用</button>
+        </div>
+      `, (sheet) => {
+        const fromEl = sheet.querySelector('#range-from');
+        const toEl = sheet.querySelector('#range-to');
+        const presetEls = Array.from(sheet.querySelectorAll('[data-preset]'));
+        const clearPreset = () => presetEls.forEach((b) => b.classList.remove('on'));
+        function applyPreset(kind) {
+          const n = new Date();
+          let f; let t;
+          if (kind === 'd30') {
+            f = dateKey(addDays(n, -29)); t = dateKey(n);
+          } else if (kind === 'lastMonth') {
+            f = dateKey(new Date(n.getFullYear(), n.getMonth() - 1, 1));
+            t = dateKey(new Date(n.getFullYear(), n.getMonth(), 0));
+          } else {
+            f = dateKey(new Date(n.getFullYear(), 0, 1)); t = dateKey(n);
+          }
+          fromEl.value = f;
+          toEl.value = t;
+          presetEls.forEach((b) => b.classList.toggle('on', b.dataset.preset === kind));
+        }
+        presetEls.forEach((b) => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+        [fromEl, toEl].forEach((el) => el.addEventListener('input', clearPreset));
+        sheet.querySelector('[data-act="cancel"]').addEventListener('click', closeSheet);
+        sheet.querySelector('[data-act="apply"]').addEventListener('click', () => {
+          const f = fromEl.value;
+          const t = toEl.value;
+          if (!f || !t) { toast('请选择开始和结束日期'); return; }
+          if (f > t) { toast('开始日期不能晚于结束日期'); return; }
+          customFrom = f;
+          customTo = t;
+          range = 'custom';
+          closeSheet();
+          syncRange();
+          paint();
+          haptic();
+          toast(`已筛选 ${f} 至 ${t}`);
+        });
+      });
     }
 
     /* ---------- v1.7 批量管理 ---------- */
@@ -465,6 +535,7 @@ export function renderLog(ctx) {
     });
     root.querySelectorAll('[data-filter]').forEach((b) => {
       b.addEventListener('click', () => {
+        if (b.dataset.filter === 'custom') { openCustomRange(); return; }
         if (range === b.dataset.filter) return;
         range = b.dataset.filter;
         syncRange();

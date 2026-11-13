@@ -45,10 +45,10 @@ check('统计页入口 / 样式 / SW 预载',
     && swSrc.includes('./js/views/weekly.js')
     && swSrc.includes('./css/parts/weekly.css'), true);
 check('版本：sw v35 / manifest 29-1.30 / 页脚 v1.30',
-  swSrc.includes("const CACHE = 'study-tracker-v41';")
-    && manifestXml.includes('android:versionCode="35"')
-    && manifestXml.includes('android:versionName="1.35"')
-    && meSrc.includes('学习记录 v1.35'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v42';")
+    && manifestXml.includes('android:versionCode="36"')
+    && manifestXml.includes('android:versionName="1.36"')
+    && meSrc.includes('学习记录 v1.36'), true);
 check('README v1.30 段与 versionCode 29',
   /^### v1\.30$/m.test(readme) && readme.includes('versionCode 29') && readme.includes('学习周报'), true);
 

@@ -55,9 +55,9 @@ check('样式与 SW 资产登记',
     && swSrc.includes("./css/parts/memory.css")
     && swSrc.includes("./js/views/memory.js"), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v41';")
-    && manifestXml.includes('android:versionCode="35"') && manifestXml.includes('android:versionName="1.35"')
-    && meSrc.includes('学习记录 v1.35'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v42';")
+    && manifestXml.includes('android:versionCode="36"') && manifestXml.includes('android:versionName="1.36"')
+    && meSrc.includes('学习记录 v1.36'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
@@ -141,7 +141,7 @@ check('首页回顾完成后文案切换', homeDone && homeDone.sub.indexOf('今
 
 await evaluate('location.hash = "#/me"; "ok"');
 await sleep(900);
-const me = await evaluate("(() => { return { entry: !!document.querySelector('[data-act=\"memory\"]'), footer: document.body.innerText.indexOf('学习记录 v1.35') >= 0 }; })()");
+const me = await evaluate("(() => { return { entry: !!document.querySelector('[data-act=\"memory\"]'), footer: document.body.innerText.indexOf('学习记录 v1.36') >= 0 }; })()");
 check('我的页有笔记回顾入口与 v1.21 页脚', me && me.entry && me.footer, me);
 
 check('无未捕获异常', logs.length === 0, logs.slice(0, 5));
