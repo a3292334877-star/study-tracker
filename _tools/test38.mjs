@@ -38,11 +38,11 @@ check('自定义范围弹层有开始 / 结束日期与快捷预设',
 check('自定义范围弹层样式',
   cssSrc.includes('.range-quick') && cssSrc.includes('.range-fields')
     && cssSrc.includes('grid-template-columns:1fr 1fr'), true);
-check('版本：sw v43 / manifest 37-1.37 / 页脚 v1.37',
-  swSrc.includes("const CACHE = 'study-tracker-v43';")
-    && manifestXml.includes('android:versionCode="37"')
-    && manifestXml.includes('android:versionName="1.37"')
-    && meSrc.includes('学习记录 v1.37'), true);
+check('版本：sw v44 / manifest 38-1.38 / 页脚 v1.38',
+  swSrc.includes("const CACHE = 'study-tracker-v44';")
+    && manifestXml.includes('android:versionCode="38"')
+    && manifestXml.includes('android:versionName="1.38"')
+    && meSrc.includes('学习记录 v1.38'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

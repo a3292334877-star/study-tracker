@@ -56,9 +56,9 @@ check('首页与我的计划入口',
     && homeSrc.includes('data-act="plan"')
     && meSrc.includes('data-act="plan"'), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24 / 资源',
-  swSrc.includes("const CACHE = 'study-tracker-v43';")
-    && manifestXml.includes('android:versionCode="37"') && manifestXml.includes('android:versionName="1.37"')
-    && meSrc.includes('学习记录 v1.37')
+  swSrc.includes("const CACHE = 'study-tracker-v44';")
+    && manifestXml.includes('android:versionCode="38"') && manifestXml.includes('android:versionName="1.38"')
+    && meSrc.includes('学习记录 v1.38')
     && swSrc.includes('./js/views/plan.js') && swSrc.includes('./css/parts/plan.css')
     && indexHtml.includes('css/parts/plan.css'), true);
 

@@ -346,9 +346,9 @@ export function renderStats(ctx) {
     </section>
 
     <section class="card fade-in">
-      <div class="card-title"><h3>科目分布</h3></div>
+      <div class="card-title"><h3>科目分布</h3><span class="more">点击科目看明细</span></div>
       ${subjectRows.length ? `<div class="bars">
-        ${subjectRows.map((r) => `<div class="bar-line">
+        ${subjectRows.map((r) => `<div class="bar-line"${r.id !== '__none' ? ` data-drill-subject="${esc(r.id)}" style="cursor:pointer" title="查看 ${esc(r.name)} 的学习记录"` : ''}>
           <span class="name"><span style="opacity:.85">${r.emoji}</span> ${esc(r.name)}</span>
           <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, Math.round((r.min / maxSubject) * 100))}%;background:${r.color}"></div></div>
           <span class="bar-val">${r.min ? fmtMinShort(r.min) : `${r.count} 条`}</span>
@@ -357,9 +357,9 @@ export function renderStats(ctx) {
     </section>
 
     <section class="card fade-in">
-      <div class="card-title"><h3>标签分布</h3><span class="more">按标签看时间去向</span></div>
+      <div class="card-title"><h3>标签分布</h3><span class="more">点击标签看明细</span></div>
       ${tagRows.length ? `<div class="bars">
-        ${tagRows.map((r) => `<div class="bar-line">
+        ${tagRows.map((r) => `<div class="bar-line" data-drill-tag="${esc(r.tag)}" style="cursor:pointer" title="查看 #${esc(r.tag)} 的学习记录">
           <span class="name">#${esc(r.tag)}</span>
           <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, Math.round(((r.minutes || r.count) / tagMax) * 100))}%;background:#7d5cff"></div></div>
           <span class="bar-val">${r.minutes ? fmtMinShort(r.minutes) : r.count + ' 条'}</span>
@@ -528,7 +528,21 @@ export function renderStats(ctx) {
     });
   }
 
+  /* v1.38：科目 / 标签分布点击下钻到记录页，并带上当前统计区间，明细口径与统计一致 */
+  function drillHref(extra) {
+    const from = keys[0];
+    const to = keys[keys.length - 1];
+    const qs = new URLSearchParams({ range: 'custom', from, to, ...extra });
+    return '#/log?' + qs.toString();
+  }
+
   function mount(root) {
+    root.querySelectorAll('[data-drill-subject]').forEach((row) => {
+      row.addEventListener('click', () => { haptic(); ctx.go(drillHref({ subject: row.dataset.drillSubject })); });
+    });
+    root.querySelectorAll('[data-drill-tag]').forEach((row) => {
+      row.addEventListener('click', () => { haptic(); ctx.go(drillHref({ tag: row.dataset.drillTag })); });
+    });
     root.querySelectorAll('[data-range]').forEach((b) => {
       b.addEventListener('click', () => {
         if (b.dataset.range === 'custom') { openCustomRange(); return; }

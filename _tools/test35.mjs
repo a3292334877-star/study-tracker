@@ -45,11 +45,11 @@ check('任务中心展示预计时长',
 check('样式包含模板与时长',
   planCss.includes('.plan-duration') && planCss.includes('.plan-tool') && planCss.includes('.plan-tpl-row')
     && planCss.includes('.plan-tpl-name'), true);
-check('版本：sw v43 / manifest 37-1.37 / 页脚 v1.37',
-  swSrc.includes("const CACHE = 'study-tracker-v43';")
-    && manifestXml.includes('android:versionCode="37"')
-    && manifestXml.includes('android:versionName="1.37"')
-    && meSrc.includes('学习记录 v1.37'), true);
+check('版本：sw v44 / manifest 38-1.38 / 页脚 v1.38',
+  swSrc.includes("const CACHE = 'study-tracker-v44';")
+    && manifestXml.includes('android:versionCode="38"')
+    && manifestXml.includes('android:versionName="1.38"')
+    && meSrc.includes('学习记录 v1.38'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

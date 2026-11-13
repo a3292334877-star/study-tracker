@@ -47,10 +47,10 @@ check('我的页回收站入口与弹层',
     && meSrc.includes('data-purge'), true);
 check('回收站样式与版本',
   meCss.includes('.mez-trash-preview')
-    && swSrc.includes("const CACHE = 'study-tracker-v43';")
-    && manifestXml.includes('android:versionCode="37"')
-    && manifestXml.includes('android:versionName="1.37"')
-    && meSrc.includes('学习记录 v1.37'), true);
+    && swSrc.includes("const CACHE = 'study-tracker-v44';")
+    && manifestXml.includes('android:versionCode="38"')
+    && manifestXml.includes('android:versionName="1.38"')
+    && meSrc.includes('学习记录 v1.38'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

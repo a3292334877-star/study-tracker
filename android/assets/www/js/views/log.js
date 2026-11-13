@@ -62,11 +62,41 @@ const FILTERS = [
   { key: 'custom', label: '自定义' },
 ];
 
+/* v1.38：从 URL 读取初始筛选（统计页下钻 / 分享链接直达）。
+   range 支持 all / week / month / custom；custom 必须带合法的 from / to。 */
+function readInitialQuery(query) {
+  const q = query || {};
+  const raw = String(q.range || '');
+  let range = 'all';
+  let customFrom = '';
+  let customTo = '';
+  if (raw === 'week' || raw === 'month') {
+    range = raw;
+  } else if (raw === 'custom') {
+    const f = String(q.from || '');
+    const t = String(q.to || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(f) && /^\d{4}-\d{2}-\d{2}$/.test(t) && f <= t) {
+      range = 'custom';
+      customFrom = f;
+      customTo = t;
+    }
+  }
+  return {
+    range,
+    customFrom,
+    customTo,
+    subjectId: q.subject ? String(q.subject) : null,
+    tag: q.tag ? String(q.tag) : null,
+    query: q.q ? String(q.q).trim() : '',
+  };
+}
+
 export function renderLog(ctx) {
   let softRefresh = null;   // mount 里注册的局部刷新入口（供 app 在数据变化时调用）
   const state = getState();
   const initial = querySessions({});
   const totalAll = state.sessions.length;
+  const initialQuery = readInitialQuery(ctx && ctx.query);
 
   /* 筛选 chips 用函数生成：局部刷新时可以按最新数据重建（科目、标签增删后菜谱要跟着变） */
   function subjectRail() {
@@ -92,13 +122,13 @@ export function renderLog(ctx) {
   const html = `
     <div class="search fade-in">
       <svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="log-q" type="search" placeholder="搜学习内容、笔记、科目…" autocomplete="off" aria-label="搜索学习记录" />
+      <input id="log-q" type="search" placeholder="搜学习内容、笔记、科目…" autocomplete="off" aria-label="搜索学习记录" value="${esc(initialQuery.query)}" />
       <button class="clr" type="button" id="log-clr" aria-label="清除搜索词" hidden>✕</button>
     </div>
 
     <div class="log-filters fade-in">
       <div class="seg" id="log-seg" role="group" aria-label="时间范围">
-        ${FILTERS.map((f) => `<button type="button" data-filter="${f.key}" class="${f.key === 'all' ? 'on' : ''}" aria-pressed="${f.key === 'all' ? 'true' : 'false'}">${f.label}</button>`).join('')}
+        ${FILTERS.map((f) => `<button type="button" data-filter="${f.key}" class="${f.key === initialQuery.range ? 'on' : ''}" aria-pressed="${f.key === initialQuery.range ? 'true' : 'false'}">${f.label}</button>`).join('')}
       </div>
 
       ${subjectRail()}
@@ -138,12 +168,15 @@ export function renderLog(ctx) {
     const input = root.querySelector('#log-q');
     const clr = root.querySelector('#log-clr');
 
-    let range = 'all';      // 时间范围：all / week / month / custom
-    let customFrom = '';    // 自定义范围开始日期（YYYY-MM-DD）
-    let customTo = '';      // 自定义范围结束日期（含当天）
-    let query = '';         // 搜索词
-    let subjectId = null;   // 科目筛选
-    let tag = null;         // 标签筛选
+    let range = initialQuery.range;      // 时间范围：all / week / month / custom
+    let customFrom = initialQuery.customFrom;    // 自定义范围开始日期（YYYY-MM-DD）
+    let customTo = initialQuery.customTo;      // 自定义范围结束日期（含当天）
+    let query = initialQuery.query;         // 搜索词
+    let subjectId = initialQuery.subjectId;   // 科目筛选
+    let tag = initialQuery.tag;         // 标签筛选
+    // URL 里带过来的科目 / 标签可能已被删除，忽略掉，不显示空结果
+    if (subjectId && !(getState().subjects || []).some((s) => s.id === subjectId)) subjectId = null;
+    if (tag && !allTags().some((t) => t.tag === tag)) tag = null;
     let items = [];         // 已加载的记录（按页追加）
     let total = 0;          // 当前筛选下的总条数（全量口径）
     let totalMin = 0;

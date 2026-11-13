@@ -33,10 +33,10 @@ check('store.js 体检函数与 pre-audit 快照',
     && storeSrc.includes("if (reason === 'pre-audit') return '体检修复前保护';"), true);
 check('me.js 体检入口与弹层',
   meSrc.includes('data-act="audit"') && meSrc.includes('function openAuditSheet')
-    && meSrc.includes('function auditSummary') && meSrc.includes('学习记录 v1.37'), true);
+    && meSrc.includes('function auditSummary') && meSrc.includes('学习记录 v1.38'), true);
 check('版本：sw v28 / manifest 22-1.23',
-  swSrc.includes("const CACHE = 'study-tracker-v43';")
-    && manifestXml.includes('android:versionCode="37"') && manifestXml.includes('android:versionName="1.37"'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v44';")
+    && manifestXml.includes('android:versionCode="38"') && manifestXml.includes('android:versionName="1.38"'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -154,7 +154,7 @@ const final = await evaluate(`(async () => {
   return { total: a.total, sessions: st.getState().sessions.length, sub: r ? r.querySelector('#audit-sub').textContent : '', footer: document.querySelector('.hint.center') ? document.querySelector('.hint.center').textContent : '' };
 })()`, true);
 check('修复后体检归零且页脚 v1.24', final && final.total === 0 && /一切正常/.test(final.sub)
-  && final.sessions === 4 && /学习记录 v1\.37/.test(final.footer.replace(/\s+/g, ' ')), final);
+  && final.sessions === 4 && /学习记录 v1\.38/.test(final.footer.replace(/\s+/g, ' ')), final);
 
 const cleanSheet = await evaluate(`(async () => {
   document.querySelector('[data-act="audit"]').click();

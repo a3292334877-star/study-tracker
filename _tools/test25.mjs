@@ -39,9 +39,9 @@ check('目标页 v1.24 结构与样式',
     && goalsSrc.includes('applyGoalPlan')
     && goalsCss.includes('.goal-plan-day'), true);
 check('版本：sw v29 / manifest 23-1.24 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v43';")
-    && manifestXml.includes('android:versionCode="37"') && manifestXml.includes('android:versionName="1.37"')
-    && meSrc.includes('学习记录 v1.37'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v44';")
+    && manifestXml.includes('android:versionCode="38"') && manifestXml.includes('android:versionName="1.38"')
+    && meSrc.includes('学习记录 v1.38'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
@@ -119,7 +119,7 @@ check('计划页能看到生成的目标任务与科目标签', planPage && plan
 
 await evaluate('location.hash = "#/me"; "ok"');
 await sleep(900);
-const me = await evaluate("(() => ({ entry: !!document.querySelector('[data-act=\"goals\"]'), footer: document.body.innerText.indexOf('学习记录 v1.37') >= 0 }))()");
+const me = await evaluate("(() => ({ entry: !!document.querySelector('[data-act=\"goals\"]'), footer: document.body.innerText.indexOf('学习记录 v1.38') >= 0 }))()");
 check('我的页有学习目标入口与 v1.24 页脚', me && me.entry && me.footer, me);
 
 check('无未捕获异常', logs.length === 0, logs.slice(0, 5));
