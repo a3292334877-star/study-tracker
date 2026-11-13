@@ -14,6 +14,7 @@ function todoMeta(t) {
   return [
     repeatLabel(t.repeat) ? repeatLabel(t.repeat) + '重复' : '',
     subj ? (subj.emoji || '📘') + ' ' + esc(subj.name) : '',
+    t.minutes ? '预计 ' + fmtMinShort(t.minutes) : '',
   ].filter(Boolean).join(' · ');
 }
 

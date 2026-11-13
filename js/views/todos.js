@@ -1,10 +1,10 @@
 /* 任务中心（v1.32）：跨周查看所有任务、待办 / 逾期 / 已完成 */
 import {
   taskOccurrences, nextTodoOccurrences, overdueTodos, rescheduleTodo, toggleTodo, setTodoDone, removeTodo, removeTodoSeries,
-  addTodo, getSubject, normRepeat, repeatLabel, todoOverview, dateKey, addDays, parseKey,
+  addTodo, setTodoMinutes, getSubject, normRepeat, repeatLabel, todoOverview, dateKey, addDays, parseKey,
 } from '../store.js';
 import {
-  esc, weekdayCN, monthDayCN, toast, haptic,
+  esc, fmtMinShort, weekdayCN, monthDayCN, toast, haptic,
 } from '../util.js';
 import { openAddTask, openRepeatDeleteSheet } from './plan.js';
 import { openRecordSheet } from '../sheets.js';
@@ -67,11 +67,13 @@ function taskRow(t, todayKey) {
     ? '<span class="plan-subject"><i style="background:' + (subj.color || 'var(--primary)') + '"></i>' + (subj.emoji || '📘') + ' ' + esc(subj.name) + '</span>'
     : '';
   const repeatHtml = repeatLabel(t.repeat) ? '<span class="plan-repeat">' + repeatLabel(t.repeat) + '</span>' : '';
+  const durationHtml = t.minutes ? '<span class="plan-duration">⏱ ' + fmtMinShort(t.minutes) + '</span>' : '';
   const reschedHtml = isOverdue ? '<button class="todo-resched" type="button" data-act="resched" title="顺延到今天" aria-label="顺延到今天">顺延</button>' : '';
   const recordHtml = t.done ? '' : '<button class="task-record" type="button" data-act="record" title="记一笔" aria-label="记一笔">✎</button>';
   return '<div class="plan-task todo-task' + (t.done ? ' done' : '') + (isOverdue ? ' is-overdue' : '') + '" data-occ="' + t.occurrence + '" data-id="' + t.id + '" data-repeat="' + normRepeat(t.repeat) + '">'
     + '<button class="plan-check" type="button" data-act="toggle" aria-label="' + (t.done ? '标记未完成' : '标记完成') + '">' + (t.done ? '✓' : '○') + '</button>'
     + '<div class="plan-text"><span class="plan-title">' + esc(t.text) + '</span>' + subjectHtml + '</div>'
+    + durationHtml
     + repeatHtml
     + reschedHtml
     + recordHtml
@@ -176,7 +178,8 @@ export function renderTodos(ctx) {
     root.querySelector('[data-act="add"]').addEventListener('click', async () => {
       const result = await openAddTask(todayKey);
       if (!result) return;
-      addTodo(result.text, todayKey, result.repeat, result.subjectId);
+      const created = addTodo(result.text, todayKey, result.repeat, result.subjectId);
+      if (created && result.minutes) setTodoMinutes(created.id, result.minutes);
       toast(result.repeat === 'none' ? '任务已添加' : '任务已添加 · ' + repeatLabel(result.repeat) + '重复');
     });
     bodyEl.addEventListener('click', async (e) => {

@@ -44,9 +44,9 @@ check('路由与我的页入口',
   appSrc.includes("import { renderAchievements }") && appSrc.includes('achievements: renderAchievements')
     && meSrc.includes('data-act="achievements"') && meSrc.includes('achievementStats()'), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24 / 样式',
-  swSrc.includes("const CACHE = 'study-tracker-v38';")
-    && manifestXml.includes('android:versionCode="32"') && manifestXml.includes('android:versionName="1.32"')
-    && meSrc.includes('学习记录 v1.32')
+  swSrc.includes("const CACHE = 'study-tracker-v39';")
+    && manifestXml.includes('android:versionCode="33"') && manifestXml.includes('android:versionName="1.33"')
+    && meSrc.includes('学习记录 v1.33')
     && swSrc.includes('./js/views/achievements.js') && swSrc.includes('./css/parts/achievements.css')
     && indexHtml.includes('css/parts/achievements.css'), true);
 

@@ -41,10 +41,10 @@ check('首页有逾期任务入口',
 check('任务中心样式与 sw 资源已接入',
   htmlSrc.includes('css/parts/todos.css') && swSrc.includes('./css/parts/todos.css') && swSrc.includes('./js/views/todos.js'), true);
 check('版本：sw v38 / manifest 32-1.32 / 页脚 v1.32',
-  swSrc.includes("const CACHE = 'study-tracker-v38';")
-    && manifestXml.includes('android:versionCode="32"')
-    && manifestXml.includes('android:versionName="1.32"')
-    && meSrc.includes('学习记录 v1.32'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v39';")
+    && manifestXml.includes('android:versionCode="33"')
+    && manifestXml.includes('android:versionName="1.33"')
+    && meSrc.includes('学习记录 v1.33'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

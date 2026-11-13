@@ -26,4 +26,17 @@
 .task-record:hover { background: var(--primary-soft); border-color: transparent; }
 .plan-task.done .task-record { opacity: .6; }
 .hero-links { display: flex; align-items: center; gap: 12px; }
-@media (max-width: 350px) { .hero-links { gap: 8px; } .hero-foot { font-size: 11px; } }
+/* v1.33：计划模板工具栏、预计时长 */
+.plan-tools { display: flex; gap: 8px; margin: 0 0 14px; }
+.plan-tool { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); color: var(--text-2); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.plan-tool:hover { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
+.plan-tool span { font-size: 13px; line-height: 1; }
+.plan-duration { flex: none; font-size: 10.5px; line-height: 1; padding: 4px 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-weight: 600; white-space: nowrap; }
+.plan-tpl-list { display: flex; flex-direction: column; gap: 9px; margin: 4px 0 2px; }
+.plan-tpl-row { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.plan-tpl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.plan-tpl-name { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-tpl-meta { font-size: 11px; color: var(--text-3); }
+.plan-tpl-actions { flex: none; display: flex; gap: 6px; }
+.plan-tpl-actions .btn { padding: 6px 10px; font-size: 12px; }
+@media (max-width: 350px) { .hero-links { gap: 8px; } .hero-foot { font-size: 11px; } .plan-tool { font-size: 11.5px; } }

@@ -53,6 +53,7 @@ const defaultState = () => ({
   sessions: [],
   templates: [],
   todos: [],
+  planTemplates: [],
   reviews: {},
   memory: {},
   demo: false,
@@ -138,7 +139,27 @@ function normalize(raw) {
         subjectId: t.subjectId ? String(t.subjectId) : null,
         doneDates: Array.isArray(t.doneDates) ? t.doneDates.filter(isDateKey) : [],
         skipDates: Array.isArray(t.skipDates) ? t.skipDates.filter(isDateKey) : [],
+        minutes: Math.max(0, Math.min(1440, Math.round(Number(t.minutes) || 0))),
       })),
+    /* v1.33：计划模板只保存「相对周内第几天 + 任务文本 / 科目 / 预计时长」，
+       不绑定具体日期，套用到任意一周都能用。 */
+    planTemplates: (Array.isArray(raw.planTemplates) ? raw.planTemplates : [])
+      .filter(isPlainObject)
+      .map((t) => ({
+        ...t,
+        name: String(t.name || '未命名模板').trim().slice(0, 20) || '未命名模板',
+        tasks: (Array.isArray(t.tasks) ? t.tasks : [])
+          .filter(isPlainObject)
+          .map((x) => ({
+            dayOffset: Math.max(0, Math.min(6, Math.round(Number(x.dayOffset) || 0))),
+            text: String(x.text || '').trim().slice(0, 40),
+            subjectId: x.subjectId ? String(x.subjectId) : null,
+            minutes: Math.max(0, Math.min(1440, Math.round(Number(x.minutes) || 0))),
+          }))
+          .filter((x) => x.text),
+      }))
+      .filter((t) => t.tasks.length)
+      .slice(0, 10),
     reviews: isPlainObject(raw.reviews) ? raw.reviews : {},
     memory: isPlainObject(raw.memory) ? raw.memory : {},
   };
@@ -1518,6 +1539,7 @@ export function planWeek(anchorKey) {
     const key = dateKey(d);
     const todos = todosOfDay(key);
     const done = todos.filter((t) => t.done).length;
+    const planned = todos.reduce((s, t) => s + Math.max(0, Number(t.minutes) || 0), 0);
     return {
       key,
       date: d,
@@ -1528,6 +1550,7 @@ export function planWeek(anchorKey) {
       todos,
       total: todos.length,
       done,
+      planned,
       pct: todos.length ? Math.round((done / todos.length) * 100) : 0,
     };
   });
@@ -1542,6 +1565,7 @@ export function planWeek(anchorKey) {
     pending: total - done,
     pct: total ? Math.round((done / total) * 100) : 0,
     minutes: days.reduce((s, d) => s + d.minutes, 0),
+    planned: days.reduce((s, d) => s + d.planned, 0),
   };
 }
 export function addTodo(text, date, repeat = 'none', subjectId = null) {
@@ -1563,6 +1587,15 @@ export function addTodo(text, date, repeat = 'none', subjectId = null) {
   state.todos.push(todo);
   commit();
   return todo;
+}
+/* v1.33：给任务设置预计时长（分钟，0–1440），0 表示不预估 */
+export function setTodoMinutes(id, minutes) {
+  const t = state.todos.find((x) => x.id === id);
+  if (!t) return null;
+  const m = Math.max(0, Math.min(1440, Math.round(Number(minutes) || 0)));
+  t.minutes = m;
+  commit();
+  return m;
 }
 /* 普通任务切换 done；重复任务切换指定日期的 doneDates（不传日期默认起始日） */
 export function toggleTodo(id, date) {
@@ -1644,6 +1677,97 @@ export function copyWeekTodos(fromAnchor, toAnchor) {
   }
   if (added) commit();
   return added;
+}
+
+/* ---------- 计划模板（v1.33）：把一周的安排存下来，套用到任意一周 ---------- */
+const PLAN_TPL_MAX = 10;
+function normPlanTasks(tasks) {
+  return (Array.isArray(tasks) ? tasks : [])
+    .filter(isPlainObject)
+    .map((x) => ({
+      dayOffset: Math.max(0, Math.min(6, Math.round(Number(x.dayOffset) || 0))),
+      text: String(x.text || '').trim().slice(0, 40),
+      subjectId: x.subjectId ? String(x.subjectId) : null,
+      minutes: Math.max(0, Math.min(1440, Math.round(Number(x.minutes) || 0))),
+    }))
+    .filter((x) => x.text);
+}
+/* 只读副本，避免视图层直接改到 state */
+export function getPlanTemplates() {
+  return state.planTemplates.map((t) => ({ ...t, tasks: t.tasks.map((x) => ({ ...x })) }));
+}
+/* 把 anchorKey 所在周的任务存成模板；同名模板直接覆盖，最多保留 10 条 */
+export function savePlanTemplate(name, anchorKey) {
+  const clean = String(name || '').trim().slice(0, 20);
+  if (!clean) return null;
+  const wk = planWeek(anchorKey);
+  const tasks = [];
+  wk.days.forEach((day, i) => {
+    day.todos.forEach((t) => {
+      const text = String(t.text || '').trim();
+      if (text) tasks.push({ dayOffset: i, text, subjectId: t.subjectId || null, minutes: Math.max(0, Number(t.minutes) || 0) });
+    });
+  });
+  if (!tasks.length) return null;
+  const existing = state.planTemplates.find((t) => t.name === clean);
+  if (existing) {
+    existing.tasks = normPlanTasks(tasks);
+    existing.createdAt = Date.now();
+    commit();
+    return existing;
+  }
+  const tpl = { id: uid(), name: clean, tasks: normPlanTasks(tasks), createdAt: Date.now() };
+  state.planTemplates.unshift(tpl);
+  if (state.planTemplates.length > PLAN_TPL_MAX) state.planTemplates.length = PLAN_TPL_MAX;
+  commit();
+  return tpl;
+}
+/* 套用到 anchorKey 所在周：按 dayOffset 落成普通任务，同一天同名任务自动跳过 */
+export function applyPlanTemplate(id, anchorKey) {
+  const tpl = state.planTemplates.find((x) => x.id === id);
+  if (!tpl) return 0;
+  const wk = planWeek(anchorKey);
+  const existing = new Set(
+    state.todos
+      .filter((t) => normRepeat(t.repeat) === 'none')
+      .map((t) => todoDate(t) + '|' + String(t.text || '').trim()),
+  );
+  let added = 0;
+  tpl.tasks.forEach((x) => {
+    const day = wk.days[x.dayOffset];
+    if (!day) return;
+    const text = String(x.text || '').trim();
+    const sig = day.key + '|' + text;
+    if (!text || existing.has(sig)) return;
+    state.todos.push({
+      id: uid(),
+      text,
+      done: false,
+      createdAt: Date.now(),
+      date: day.key,
+      repeat: 'none',
+      subjectId: x.subjectId || null,
+      minutes: Math.max(0, Math.min(1440, Math.round(Number(x.minutes) || 0))),
+      fromPlanTemplate: tpl.id,
+    });
+    existing.add(sig);
+    added += 1;
+  });
+  if (added) commit();
+  return added;
+}
+/* 删除单条模板 / 清空全部模板 */
+export function removePlanTemplate(id) {
+  const before = state.planTemplates.length;
+  state.planTemplates = state.planTemplates.filter((x) => x.id !== id);
+  if (state.planTemplates.length !== before) commit();
+  return state.planTemplates.length !== before;
+}
+export function clearPlanTemplates() {
+  const n = state.planTemplates.length;
+  state.planTemplates = [];
+  if (n) commit();
+  return n;
 }
 
 /* ---------- 任务中心（v1.32）：跨天查看全部任务 ---------- */
