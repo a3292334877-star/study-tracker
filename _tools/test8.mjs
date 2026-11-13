@@ -34,12 +34,12 @@ const pkg = {
   swCsv: swSrc.includes("'./js/csv.js'"),
   versionCode: (manifestXml.match(/android:versionCode="(\d+)"/) || [])[1] || '',
   versionName: (manifestXml.match(/android:versionName="([^"]+)"/) || [])[1] || '',
-  meVersion: /学习记录 v1\.36/.test(meSrc),
+  meVersion: /学习记录 v1\.37/.test(meSrc),
   shortcuts: (manifestSrc.match(/"shortcuts"/) ? JSON.parse(manifestSrc).shortcuts.length : 0),
   preBatchLabel: /删除前保护/.test(read('js/store.js')),
   saveFileBridge: /public void saveFile\(/.test(read('android/java/com/xuexijilu/MainActivity.java')),
 };
-check('v1.24 版本一致性', pkg.sw === 'study-tracker-v42' && pkg.versionCode === '36' && pkg.versionName === '1.36' && pkg.meVersion && pkg.swCsv, pkg);
+check('v1.24 版本一致性', pkg.sw === 'study-tracker-v43' && pkg.versionCode === '37' && pkg.versionName === '1.37' && pkg.meVersion && pkg.swCsv, pkg);
 check('PWA shortcuts 三入口', pkg.shortcuts === 3, pkg.shortcuts);
 check('删除前保护 + saveFile 桥就绪', pkg.preBatchLabel && pkg.saveFileBridge, { preBatchLabel: pkg.preBatchLabel, saveFileBridge: pkg.saveFileBridge });
 
@@ -104,7 +104,7 @@ await evaluate("location.hash='#/me'"); await sleep(900);
 const meRows = await evaluate(`(() => ({
   usageText: (document.querySelector('#storage-usage-row .row-sub')||{}).textContent || '',
   usageVal: (document.querySelector('#storage-usage-val')||{}).textContent || '',
-  footer: (document.querySelector('.me-footer')||document.body).textContent.includes('学习记录 v1.36'),
+  footer: (document.querySelector('.me-footer')||document.body).textContent.includes('学习记录 v1.37'),
 }))()`);
 check('存储用量行就绪', meRows.usageText.includes('本项目数据占用') && meRows.usageVal.length > 0, meRows);
 check('页脚 v1.24', meRows.footer === true, meRows.footer);
@@ -202,7 +202,7 @@ check('统计三卡（趋势/时段/周目标）', stats.trend && stats.trendW &
 const mfetch = await evaluate(`(async () => {
   const m = await (await fetch('/manifest.webmanifest')).json();
   const sw = await (await fetch('/sw.js')).text();
-  return { shortcuts: m.shortcuts.map(s => s.name), swV14: sw.includes("study-tracker-v42"), swCsv: sw.includes('./js/csv.js') };
+  return { shortcuts: m.shortcuts.map(s => s.name), swV14: sw.includes("study-tracker-v43"), swCsv: sw.includes('./js/csv.js') };
 })()`, true);
 check('manifest shortcuts 内容', Array.isArray(mfetch.shortcuts) && mfetch.shortcuts.length === 3, mfetch.shortcuts);
 check('sw v28 + 预载 csv.js', mfetch.swV14 && mfetch.swCsv, mfetch);

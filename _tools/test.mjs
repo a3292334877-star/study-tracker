@@ -264,7 +264,7 @@ const statsInfo = await evaluate(`(() => ({
   seg: document.querySelectorAll('[data-range]').length,
   heat: document.querySelectorAll('.heatmap div[title]').length,
 }))()`);
-check('统计页渲染', statsInfo.bars === 7 && statsInfo.seg === 3, statsInfo);
+check('统计页渲染', statsInfo.bars === 7 && statsInfo.seg === 4, statsInfo);
 
 // 切换范围
 await evaluate("document.querySelector('[data-range=\"month\"]').click()");

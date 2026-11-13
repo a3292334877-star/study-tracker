@@ -242,7 +242,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.36 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.37 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 

@@ -17,7 +17,30 @@ const RANGES = [
   { key: 'week', label: '本周' },
   { key: 'month', label: '本月' },
   { key: 'all', label: '全部' },
+  { key: 'custom', label: '自定义' },
 ];
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/* v1.37：从 URL 读出自定义区间，格式不对或起止颠倒就退回默认视图 */
+function readCustom(query) {
+  const from = query.from || '';
+  const to = query.to || '';
+  if (!DAY_RE.test(from) || !DAY_RE.test(to) || from > to) return null;
+  return { from, to, fromD: parseKey(from), toD: parseKey(to) };
+}
+
+function daysIn(fromD, toD) {
+  return Math.max(1, Math.round((toD - fromD) / 86400000) + 1);
+}
+
+function rangeLabelText(range, custom) {
+  if (range === 'custom' && custom) {
+    const sameYear = custom.fromD.getFullYear() === custom.toD.getFullYear();
+    const f = sameYear ? monthDayCN(custom.fromD) : `${custom.fromD.getFullYear()}年${monthDayCN(custom.fromD)}`;
+    return `${f} – ${monthDayCN(custom.toD)}`;
+  }
+  return RANGES.find((r) => r.key === range)?.label || '本周';
+}
 
 /* v1.7：把小时数归到口语化的时段 */
 function hourBandText(h) {
@@ -29,8 +52,11 @@ function hourBandText(h) {
   return '晚上';
 }
 
-function rangeKeys(range, weekStart) {
+function rangeKeys(range, weekStart, custom) {
   const now = new Date();
+  if (range === 'custom' && custom) {
+    return Array.from({ length: daysIn(custom.fromD, custom.toD) }, (_, i) => dateKey(addDays(custom.fromD, i)));
+  }
   if (range === 'week') {
     const start = startOfWeek(now, weekStart);
     return Array.from({ length: 7 }, (_, i) => dateKey(addDays(start, i)));
@@ -48,7 +74,7 @@ function rangeKeys(range, weekStart) {
 }
 
 /* 对比口径：本周 vs 上周（按 weekStart）、本月 vs 上月、全部 vs 最近 30 天 / 此前 30 天 */
-function compareOf(range, weekStart) {
+function compareOf(range, weekStart, custom) {
   const now = new Date();
   let curLabel = '本周';
   let prevLabel = '上周';
@@ -57,7 +83,15 @@ function compareOf(range, weekStart) {
   let prevFrom;
   let prevTo;
 
-  if (range === 'month') {
+  if (range === 'custom' && custom) {
+    curLabel = '当前区间';
+    prevLabel = '上一周期';
+    const len = daysIn(custom.fromD, custom.toD);
+    curFrom = custom.fromD;
+    curTo = custom.toD;
+    prevFrom = addDays(custom.fromD, -len);
+    prevTo = addDays(custom.fromD, -1);
+  } else if (range === 'month') {
     curLabel = '本月';
     prevLabel = '上月';
     curFrom = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -104,10 +138,13 @@ function compareOf(range, weekStart) {
 
 export function renderStats(ctx) {
   const state = getState();
-  const range = ctx.query.range || 'week';
+  const custom = readCustom(ctx.query);
+  let range = RANGES.some((r) => r.key === ctx.query.range) ? ctx.query.range : 'week';
+  if (range === 'custom' && !custom) range = 'week';
   const weekStart = state.settings.weekStart ?? 1;
-  const keys = rangeKeys(range, weekStart);
+  const keys = rangeKeys(range, weekStart, custom);
   const keySet = new Set(keys);
+  const rangeLabel = rangeLabelText(range, custom);
 
   const inRange = state.sessions.filter((s) => keySet.has(dateKey(new Date(s.end))));
   const totalMin = inRange.reduce((sum, s) => sum + s.minutes, 0);
@@ -171,9 +208,20 @@ export function renderStats(ctx) {
     const k = dateKey(new Date(s.end));
     minByKey.set(k, (minByKey.get(k) || 0) + s.minutes);
   });
-  const chartDays = range === 'week'
-    ? keys.map((k) => ({ key: k, date: parseKey(k), minutes: minByKey.get(k) || 0 }))
-    : lastNDays(14);   // 月/全部：只画最近 14 天，避免 28 根柱在 390px 下横向溢出
+  /* v1.37：自定义区间内天数不多时逐日画；区间太长就只画最近 31 天，避免柱子挤出屏幕 */
+  let chartDays;
+  let chartNote;
+  if (range === 'week') {
+    chartDays = keys.map((k) => ({ key: k, date: parseKey(k), minutes: minByKey.get(k) || 0 }));
+    chartNote = '本周';
+  } else if (range === 'custom' && custom) {
+    const all = keys.map((k) => ({ key: k, date: parseKey(k), minutes: minByKey.get(k) || 0 }));
+    chartDays = all.length <= 31 ? all : all.slice(-31);
+    chartNote = all.length <= 31 ? `区间 ${all.length} 天` : `区间最近 31 天`;
+  } else {
+    chartDays = lastNDays(14);   // 月/全部：只画最近 14 天，避免 28 根柱在 390px 下横向溢出
+    chartNote = `最近 ${chartDays.length} 天`;
+  }
   const maxChart = Math.max(30, ...chartDays.map((d) => d.minutes));
   const todayKey = dateKey(new Date());
 
@@ -181,7 +229,7 @@ export function renderStats(ctx) {
   const recent = inRange.slice().sort((a, b) => b.end - a.end).slice(0, 5);
 
   /* v1.4：周/月/全部 的环比对比（口径见 compareOf） */
-  const cmp = compareOf(range, weekStart);
+  const cmp = compareOf(range, weekStart, custom);
 
   /* v1.4：历史最好成绩（与当前时间段无关） */
   const longestDays = longestStreak();
@@ -254,11 +302,11 @@ export function renderStats(ctx) {
 
   const html = `
     <div class="seg fade-in" id="range-seg">
-      ${RANGES.map((r) => `<button type="button" data-range="${r.key}" class="${r.key === range ? 'on' : ''}">${r.label}</button>`).join('')}
+      ${RANGES.map((r) => `<button type="button" data-range="${r.key}" class="${r.key === range ? 'on' : ''}" aria-pressed="${r.key === range ? 'true' : 'false'}">${r.label}</button>`).join('')}
     </div>
 
     <section class="hero fade-in" style="margin-top:12px">
-      <div class="hero-label">${RANGES.find((r) => r.key === range)?.label}学习</div>
+      <div class="hero-label">${rangeLabel}学习</div>
       <div class="hero-value" aria-live="polite"><b>${total.value}</b><span>${total.unit}</span></div>
       <div class="hero-sub">${inRange.length} 条记录 · ${activeDays} 天 · 平均每学 ${fmtMinShort(avg)}</div>
     </section>
@@ -284,7 +332,7 @@ export function renderStats(ctx) {
     </div>
 
     <section class="card fade-in">
-      <div class="card-title"><h3>每日趋势</h3><span class="more">${range === 'week' ? '本周' : '最近 ' + chartDays.length + ' 天'} · 点柱看当天</span></div>
+      <div class="card-title"><h3>每日趋势</h3><span class="more">${chartNote} · 点柱看当天</span></div>
       <div class="chart">
         ${chartDays.map((d) => {
           const h = Math.max(4, Math.round((d.minutes / maxChart) * 100));
@@ -329,7 +377,7 @@ export function renderStats(ctx) {
     </section>
 
     <section class="card fade-in">
-      <div class="card-title"><h3>时段分布</h3><span class="more">${RANGES.find((r) => r.key === range)?.label} · 按开始时间</span></div>
+      <div class="card-title"><h3>时段分布</h3><span class="more">${rangeLabel} · 按开始时间</span></div>
       ${inRange.length ? `
       <div class="chart chart-hours">
         ${hourBars.map((m, h) => {
@@ -422,9 +470,70 @@ export function renderStats(ctx) {
     </section>
   `;
 
+  /* v1.37：统计页自定义时间范围（与记录页同一套交互） */
+  function openCustomRange() {
+    const now = new Date();
+    const today = dateKey(now);
+    const defFrom = custom ? custom.from : dateKey(new Date(now.getFullYear(), now.getMonth(), 1));
+    const defTo = custom ? custom.to : today;
+    openSheet(`
+      <h2 class="sheet-title">自定义时间范围</h2>
+      <p class="sheet-desc">统计开始到结束日期之间的学习情况，结束日期当天也算在内。</p>
+      <div class="chips range-quick" id="range-quick">
+        <button class="chip chip-sm" type="button" data-preset="d30">近 30 天</button>
+        <button class="chip chip-sm" type="button" data-preset="lastMonth">上月</button>
+        <button class="chip chip-sm" type="button" data-preset="year">今年</button>
+      </div>
+      <div class="range-fields">
+        <div class="field"><label for="stats-range-from">开始日期</label><input class="input" id="stats-range-from" type="date" max="${today}" value="${defFrom}" /></div>
+        <div class="field"><label for="stats-range-to">结束日期</label><input class="input" id="stats-range-to" type="date" max="${today}" value="${defTo}" /></div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn" type="button" data-act="cancel">取消</button>
+        <button class="btn primary" type="button" data-act="apply">应用</button>
+      </div>
+    `, (sheet) => {
+      const fromEl = sheet.querySelector('#stats-range-from');
+      const toEl = sheet.querySelector('#stats-range-to');
+      const presetEls = Array.from(sheet.querySelectorAll('[data-preset]'));
+      const clearPreset = () => presetEls.forEach((b) => b.classList.remove('on'));
+      function applyPreset(kind) {
+        const n = new Date();
+        let f; let t;
+        if (kind === 'd30') {
+          f = dateKey(addDays(n, -29)); t = dateKey(n);
+        } else if (kind === 'lastMonth') {
+          f = dateKey(new Date(n.getFullYear(), n.getMonth() - 1, 1));
+          t = dateKey(new Date(n.getFullYear(), n.getMonth(), 0));
+        } else {
+          f = dateKey(new Date(n.getFullYear(), 0, 1)); t = dateKey(n);
+        }
+        fromEl.value = f;
+        toEl.value = t;
+        presetEls.forEach((b) => b.classList.toggle('on', b.dataset.preset === kind));
+      }
+      presetEls.forEach((b) => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+      [fromEl, toEl].forEach((el) => el.addEventListener('input', clearPreset));
+      sheet.querySelector('[data-act="cancel"]').addEventListener('click', closeSheet);
+      sheet.querySelector('[data-act="apply"]').addEventListener('click', () => {
+        const f = fromEl.value;
+        const t = toEl.value;
+        if (!f || !t) { toast('请选择开始和结束日期'); return; }
+        if (f > t) { toast('开始日期不能晚于结束日期'); return; }
+        closeSheet();
+        haptic();
+        toast(`已筛选 ${f} 至 ${t}`);
+        ctx.go(`#/stats?range=custom&from=${f}&to=${t}`);
+      });
+    });
+  }
+
   function mount(root) {
     root.querySelectorAll('[data-range]').forEach((b) => {
-      b.addEventListener('click', () => { ctx.go('#/stats?range=' + b.dataset.range); });
+      b.addEventListener('click', () => {
+        if (b.dataset.range === 'custom') { openCustomRange(); return; }
+        ctx.go('#/stats?range=' + b.dataset.range);
+      });
     });
     root.querySelectorAll('[data-day]').forEach((b) => {
       b.addEventListener('click', () => openDaySheet(b.dataset.day, () => ctx.refresh()));
