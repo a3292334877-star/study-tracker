@@ -1,10 +1,11 @@
 /* 任务中心（v1.32）：跨周查看所有任务、待办 / 逾期 / 已完成 */
 import {
   taskOccurrences, nextTodoOccurrences, overdueTodos, rescheduleTodo, toggleTodo, setTodoDone, removeTodo, removeTodoSeries,
-  addTodo, setTodoMinutes, getSubject, normRepeat, repeatLabel, todoOverview, dateKey, addDays, parseKey,
+  addTodo, setTodoMinutes, getSubject, activeSubjects, normRepeat, repeatLabel, todoOverview, dateKey, addDays, parseKey,
+  getTodo, updateTodo, rescheduleTodoOccurrence,
 } from '../store.js';
 import {
-  esc, fmtMinShort, weekdayCN, monthDayCN, toast, haptic,
+  esc, fmtMinShort, weekdayCN, monthDayCN, toast, haptic, openSheet, closeSheet,
 } from '../util.js';
 import { openAddTask, openRepeatDeleteSheet } from './plan.js';
 import { openRecordSheet } from '../sheets.js';
@@ -21,8 +22,95 @@ function dayDiff(from, to) {
   return Math.round((b - a) / DAY_MS);
 }
 
-/* 按当前筛选与搜索词收集任务；重复任务按天投影，逾期只算不重复的任务 */
-function collect(filter, q) {
+const EDIT_MINUTES = [0, 15, 30, 45, 60, 90];
+/* v1.34：编辑任务弹层：内容 / 科目 / 预计时长 / 日期，返回 { text, subjectId, minutes, dateKey } 或 null。
+   重复任务的内容改动套用到整个系列，日期改动只调整当前这一天。 */
+function openEditTodoSheet(item) {
+  const subjects = activeSubjects();
+  const isRepeat = normRepeat(item.repeat) !== 'none';
+  const currentMinutes = Math.max(0, Math.round(Number(item.minutes) || 0));
+  const minOptions = EDIT_MINUTES.includes(currentMinutes)
+    ? EDIT_MINUTES
+    : EDIT_MINUTES.concat([currentMinutes]).sort((a, b) => a - b);
+  return new Promise((resolve) => {
+    let done = false;
+    let subjectId = item.subjectId || null;
+    let minutes = currentMinutes;
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      closeSheet();
+      resolve(val);
+    };
+    openSheet(
+      `<h2 class="sheet-title">编辑任务</h2>
+      <p class="sheet-desc">${isRepeat ? '这是重复任务：内容、科目和时长会套用到所有日期；改日期只调整这一次。' : '修改任务内容、科目、预计时长或日期。'}</p>
+      <div class="field">
+        <label for="todo-edit-text">任务内容</label>
+        <input class="input" id="todo-edit-text" maxlength="40" value="${esc(item.text)}" />
+      </div>
+      <div class="field">
+        <label>科目（可选）</label>
+        <div class="chips" id="todo-edit-subjects" role="group" aria-label="任务科目">
+          <button class="chip${subjectId ? '' : ' on'}" type="button" data-edit-subject="" aria-pressed="${subjectId ? 'false' : 'true'}">不指定</button>
+          ${subjects.map((s) => `<button class="chip${s.id === subjectId ? ' on' : ''}" type="button" data-edit-subject="${s.id}" aria-pressed="${s.id === subjectId ? 'true' : 'false'}">${s.emoji || '📘'} ${esc(s.name)}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label>预计时长（可选）</label>
+        <div class="chips" id="todo-edit-minutes" role="group" aria-label="预计时长">
+          ${minOptions.map((m) => `<button class="chip${m === minutes ? ' on' : ''}" type="button" data-edit-min="${m}" aria-pressed="${m === minutes ? 'true' : 'false'}">${m ? m + ' 分钟' : '不设'}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label for="todo-edit-date">日期</label>
+        <input class="input" id="todo-edit-date" type="date" value="${item.occurrence}" />
+      </div>
+      <div class="sheet-actions">
+        <button class="btn" type="button" data-act="no">取消</button>
+        <button class="btn primary" type="button" data-act="yes">保存</button>
+      </div>`,
+      (sheet) => {
+        const input = sheet.querySelector('#todo-edit-text');
+        const dateEl = sheet.querySelector('#todo-edit-date');
+        sheet.querySelectorAll('[data-edit-subject]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            subjectId = btn.dataset.editSubject || null;
+            sheet.querySelectorAll('[data-edit-subject]').forEach((b) => {
+              const on = b === btn;
+              b.classList.toggle('on', on);
+              b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+          });
+        });
+        sheet.querySelectorAll('[data-edit-min]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            minutes = Number(btn.dataset.editMin) || 0;
+            sheet.querySelectorAll('[data-edit-min]').forEach((b) => {
+              const on = b === btn;
+              b.classList.toggle('on', on);
+              b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+          });
+        });
+        sheet.querySelector('[data-act="no"]').addEventListener('click', () => finish(null));
+        sheet.querySelector('[data-act="yes"]').addEventListener('click', () => {
+          const text = input.value.trim();
+          if (!text) { input.focus(); return; }
+          const dateKeyVal = /^\d{4}-\d{2}-\d{2}$/.test(dateEl.value) ? dateEl.value : item.occurrence;
+          finish({ text, subjectId, minutes, dateKey: dateKeyVal });
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); sheet.querySelector('[data-act="yes"]').click(); }
+        });
+        setTimeout(() => input.focus(), 150);
+      },
+    );
+  });
+}
+
+/* 按当前筛选、搜索词与科目收集任务；重复任务按天投影，逾期只算不重复的任务 */
+function collect(filter, q, subjectId) {
   const now = new Date();
   const todayKey = dateKey(now);
   let items = [];
@@ -50,6 +138,7 @@ function collect(filter, q) {
         || Boolean(subj && String(subj.name || '').toLowerCase().includes(kw));
     });
   }
+  if (subjectId) list = list.filter((t) => t.subjectId === subjectId);
   list.sort((a, b) => {
     if (a.occurrence !== b.occurrence) {
       if (filter === 'done') return a.occurrence < b.occurrence ? 1 : -1;
@@ -70,12 +159,14 @@ function taskRow(t, todayKey) {
   const durationHtml = t.minutes ? '<span class="plan-duration">⏱ ' + fmtMinShort(t.minutes) + '</span>' : '';
   const reschedHtml = isOverdue ? '<button class="todo-resched" type="button" data-act="resched" title="顺延到今天" aria-label="顺延到今天">顺延</button>' : '';
   const recordHtml = t.done ? '' : '<button class="task-record" type="button" data-act="record" title="记一笔" aria-label="记一笔">✎</button>';
+  const editHtml = '<button class="todo-more" type="button" data-act="edit" title="编辑任务" aria-label="编辑任务">⋯</button>';
   return '<div class="plan-task todo-task' + (t.done ? ' done' : '') + (isOverdue ? ' is-overdue' : '') + '" data-occ="' + t.occurrence + '" data-id="' + t.id + '" data-repeat="' + normRepeat(t.repeat) + '">'
     + '<button class="plan-check" type="button" data-act="toggle" aria-label="' + (t.done ? '标记未完成' : '标记完成') + '">' + (t.done ? '✓' : '○') + '</button>'
     + '<div class="plan-text"><span class="plan-title">' + esc(t.text) + '</span>' + subjectHtml + '</div>'
     + durationHtml
     + repeatHtml
     + reschedHtml
+    + editHtml
     + recordHtml
     + '<button class="row-chev" type="button" data-act="del" aria-label="删除任务">✕</button>'
     + '</div>';
@@ -118,10 +209,18 @@ export function renderTodos(ctx) {
   const tomorrowKey = dateKey(addDays(now, 1));
   let filter = FILTERS.some((f) => f.id === ctx.query.f) ? ctx.query.f : 'pending';
   let q = '';
+  let subjectId = '';
   let bodyEl = null;
   let countEl = null;
 
   const overview = todoOverview();
+  const subjects = activeSubjects();
+  const subjectChips = subjects.length
+    ? '<div class="chips todo-subjects fade-in" id="todo-subjects" role="group" aria-label="按科目筛选">'
+      + '<button class="chip on" type="button" data-subject="" aria-pressed="true">全部科目</button>'
+      + subjects.map((s) => '<button class="chip" type="button" data-subject="' + s.id + '" aria-pressed="false">' + (s.emoji || '📘') + ' ' + esc(s.name) + '</button>').join('')
+      + '</div>'
+    : '';
   const html = '<section class="hero todo-hero fade-in">'
     + '<div class="hero-label">任务中心</div>'
     + '<div class="hero-value"><b>' + overview.todayPending + '</b><span>项今日待办</span></div>'
@@ -135,12 +234,13 @@ export function renderTodos(ctx) {
     + '<div class="seg todo-seg fade-in" id="todo-seg" role="group" aria-label="任务筛选">'
     + FILTERS.map((f) => '<button type="button" data-filter="' + f.id + '" class="' + (f.id === filter ? 'on' : '') + '" aria-pressed="' + (f.id === filter ? 'true' : 'false') + '">' + f.label + '</button>').join('')
     + '</div>'
+    + subjectChips
     + '<div class="todo-toolbar fade-in"><p class="hint" id="todo-count" aria-live="polite"></p>'
     + '<button class="btn primary todo-add" type="button" data-act="add">+ 添加任务</button></div>'
     + '<div id="todos-body"></div>';
 
   function paint() {
-    const list = collect(filter, q);
+    const list = collect(filter, q, subjectId);
     bodyEl.innerHTML = listHtml(list, filter, todayKey, tomorrowKey);
     countEl.textContent = filter === 'done'
       ? '共 ' + list.length + ' 项已完成'
@@ -154,6 +254,17 @@ export function renderTodos(ctx) {
       btn.addEventListener('click', () => {
         filter = btn.dataset.filter;
         root.querySelectorAll('[data-filter]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        paint();
+      });
+    });
+    root.querySelectorAll('[data-subject]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        subjectId = btn.dataset.subject || '';
+        root.querySelectorAll('[data-subject]').forEach((b) => {
           const on = b === btn;
           b.classList.toggle('on', on);
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -196,6 +307,16 @@ export function renderTodos(ctx) {
         toggleTodo(id, key);
       } else if (act === 'resched') {
         if (rescheduleTodo(id, todayKey)) toast('已顺延到今天');
+      } else if (act === 'edit') {
+        const item = taskOccurrences(key, key).find((x) => x.id === id);
+        if (!item) return;
+        haptic();
+        const result = await openEditTodoSheet(item);
+        if (!result) return;
+        const updated = updateTodo(id, { text: result.text, subjectId: result.subjectId, minutes: result.minutes });
+        if (!updated) { toast('任务保存失败'); return; }
+        if (result.dateKey !== key && rescheduleTodoOccurrence(id, key, result.dateKey)) toast('任务已更新并改期');
+        else toast('任务已更新');
       } else if (act === 'record') {
         const item = taskOccurrences(key, key).find((x) => x.id === id);
         if (!item) return;

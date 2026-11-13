@@ -41,9 +41,9 @@ check('计划页重复任务与复制上周 UI',
     && homeSrc.includes('repeatLabel'), true);
 check('计划重复任务样式', planCss.includes('.plan-repeat') && planCss.includes('.hero-links'), true);
 check('版本：sw v28 / manifest 22-1.23 / 页脚 v1.24',
-  swSrc.includes("const CACHE = 'study-tracker-v39';")
-    && manifestXml.includes('android:versionCode="33"') && manifestXml.includes('android:versionName="1.33"')
-    && meSrc.includes('学习记录 v1.33'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v40';")
+    && manifestXml.includes('android:versionCode="34"') && manifestXml.includes('android:versionName="1.34"')
+    && meSrc.includes('学习记录 v1.34'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

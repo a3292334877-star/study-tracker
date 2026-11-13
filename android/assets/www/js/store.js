@@ -1824,6 +1824,60 @@ export function rescheduleTodo(id, toKey) {
   commit();
   return true;
 }
+/* v1.34：任务编辑用，读取一条任务的原始数据（浅拷贝，避免视图直接改 state） */
+export function getTodo(id) {
+  const t = state.todos.find((x) => x.id === id);
+  if (!t) return null;
+  const copy = { ...t };
+  if (Array.isArray(t.doneDates)) copy.doneDates = t.doneDates.slice();
+  if (Array.isArray(t.skipDates)) copy.skipDates = t.skipDates.slice();
+  return copy;
+}
+/* v1.34：编辑任务内容 / 科目 / 预计时长；返回更新后的任务，校验失败返回 null */
+export function updateTodo(id, { text, subjectId, minutes } = {}) {
+  const t = state.todos.find((x) => x.id === id);
+  if (!t) return null;
+  if (text !== undefined) {
+    const next = String(text || '').trim().slice(0, 40);
+    if (!next) return null;
+    t.text = next;
+  }
+  if (subjectId !== undefined) t.subjectId = subjectId || null;
+  if (minutes !== undefined) t.minutes = Math.max(0, Math.min(1440, Math.round(Number(minutes) || 0)));
+  commit();
+  return { ...t };
+}
+/* v1.34：把某一天的 occurrence 改到另一天。
+   普通任务直接改 date；重复任务只调整这一次：跳过原日期，并在目标日期新建一条普通任务。 */
+export function rescheduleTodoOccurrence(id, fromKey, toKey) {
+  const t = state.todos.find((x) => x.id === id);
+  if (!t || !isDateKey(fromKey) || !isDateKey(toKey) || fromKey === toKey) return false;
+  if (normRepeat(t.repeat) === 'none') {
+    if (todoDate(t) !== fromKey) return false;
+    t.date = toKey;
+    t.done = false;
+    commit();
+    return true;
+  }
+  if (!repeatMatches(t, fromKey) || repeatSkipped(t, fromKey)) return false;
+  if (!Array.isArray(t.skipDates)) t.skipDates = [];
+  if (!t.skipDates.includes(fromKey)) t.skipDates.push(fromKey);
+  if (Array.isArray(t.doneDates)) t.doneDates = t.doneDates.filter((k) => k !== fromKey);
+  const moved = {
+    id: uid(),
+    text: t.text,
+    done: false,
+    createdAt: Date.now(),
+    date: toKey,
+    repeat: 'none',
+    subjectId: t.subjectId || null,
+    minutes: Math.max(0, Math.min(1440, Math.round(Number(t.minutes) || 0))),
+    movedFrom: t.id,
+  };
+  state.todos.push(moved);
+  commit();
+  return { ...moved };
+}
 /* 任务中心概览：今日待办、逾期条数、未来一周待办，供首页入口显示 */
 export function todoOverview() {
   const today = dateKey(new Date());

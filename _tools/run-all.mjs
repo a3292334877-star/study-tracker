@@ -4,7 +4,7 @@
    做三件事：
      1) 用【绝对路径】ROOT 起静态服务器（8123）——test2~test20 依赖外部服务器，
         传相对路径会被 server.mjs 的目录越界守卫判成 403；
-     2) 串行跑 test.mjs → test2 ~ test35，各自独立 OUT 子目录与调试端口，
+     2) 串行跑 test.mjs → test2 ~ test36，各自独立 OUT 子目录与调试端口，
         避免 DBG 端口 / user-data-dir 撞车（不要并行跑，只能串行）；
      3) 汇总每个套件的 通过/总数，任一失败则退出码 1。 */
 import { spawn } from 'node:child_process';
@@ -79,6 +79,7 @@ const SUITES = [
   { file: 'test33.mjs', dir: 't33', port: 8154, dbg: 9395, result: 'result33.json' },
   { file: 'test34.mjs', dir: 't34', port: 8156, dbg: 9397, result: 'result34.json' },
   { file: 'test35.mjs', dir: 't35', port: 8158, dbg: 9399, result: 'result35.json' },
+  { file: 'test36.mjs', dir: 't36', port: 8159, dbg: 9400, result: 'result36.json' },
 ];
 
 console.log('ROOT =', ROOT);
