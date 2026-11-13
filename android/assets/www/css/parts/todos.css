@@ -22,3 +22,22 @@
   .todo-toolbar { flex-wrap: wrap; }
   .todo-add { width: 100%; }
 }
+
+/* v1.35 任务中心批量处理 */
+.todo-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.todo-snooze-all { font-size: 12px; }
+.todo-batch-btn[aria-pressed="true"] { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
+#todos-body.selecting .todo-task { position: relative; padding-left: 44px; cursor: pointer; }
+#todos-body.selecting .todo-task > [data-act] { display: none; }
+.todo-pick {
+  display: none; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line);
+  background: var(--surface); color: transparent; font-size: 13px; font-weight: 700;
+  align-items: center; justify-content: center;
+}
+#todos-body.selecting .todo-pick { display: flex; }
+#todos-body.selecting .todo-task.picked .todo-pick { background: var(--primary); border-color: var(--primary); color: #fff; }
+#todos-body.selecting .todo-task.picked .todo-pick::after { content: '✓'; }
+.todo-batch-bar { gap: 6px; }
+.todo-batch-bar .todo-batch-chip { padding: 6px 8px; font-size: 12px; }
+.todo-batch-bar .batch-count { font-size: 12px; }

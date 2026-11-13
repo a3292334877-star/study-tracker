@@ -1878,6 +1878,81 @@ export function rescheduleTodoOccurrence(id, fromKey, toKey) {
   commit();
   return { ...moved };
 }
+/* v1.35：任务中心批量处理。items = [{ id, date }]，一次 commit，避免批量操作触发多次重绘。
+   普通任务直接改 done；重复任务把对应日期写入 doneDates。返回实际处理条数。 */
+export function completeTodoOccurrences(items) {
+  const list = Array.isArray(items) ? items : [];
+  let n = 0;
+  for (const it of list) {
+    const t = state.todos.find((x) => x.id === it.id);
+    if (!t) continue;
+    if (normRepeat(t.repeat) === 'none') {
+      if (!t.done) { t.done = true; n += 1; }
+    } else {
+      const key = isDateKey(it.date) ? it.date : todoDate(t);
+      if (!Array.isArray(t.doneDates)) t.doneDates = [];
+      if (!t.doneDates.includes(key)) { t.doneDates.push(key); n += 1; }
+    }
+  }
+  if (n) commit();
+  return n;
+}
+/* v1.35：批量顺延到指定日期。普通任务改 date；重复任务跳过原日期并在目标日新建普通任务。
+   返回实际顺延条数（目标日与今天相同或重复任务日期不匹配时跳过）。 */
+export function rescheduleTodoOccurrences(items, toKey) {
+  if (!isDateKey(toKey)) return 0;
+  const list = Array.isArray(items) ? items : [];
+  let n = 0;
+  for (const it of list) {
+    const t = state.todos.find((x) => x.id === it.id);
+    if (!t) continue;
+    if (normRepeat(t.repeat) === 'none') {
+      if (todoDate(t) === toKey) continue;
+      t.date = toKey;
+      t.done = false;
+      n += 1;
+    } else {
+      const fromKey = isDateKey(it.date) ? it.date : todoDate(t);
+      if (fromKey === toKey || !repeatMatches(t, fromKey) || repeatSkipped(t, fromKey)) continue;
+      if (!Array.isArray(t.skipDates)) t.skipDates = [];
+      if (!t.skipDates.includes(fromKey)) t.skipDates.push(fromKey);
+      if (Array.isArray(t.doneDates)) t.doneDates = t.doneDates.filter((k) => k !== fromKey);
+      state.todos.push({
+        id: uid(),
+        text: t.text,
+        done: false,
+        createdAt: Date.now(),
+        date: toKey,
+        repeat: 'none',
+        subjectId: t.subjectId || null,
+        minutes: Math.max(0, Math.min(1440, Math.round(Number(t.minutes) || 0))),
+        movedFrom: t.id,
+      });
+      n += 1;
+    }
+  }
+  if (n) commit();
+  return n;
+}
+/* v1.35：批量删除选中的任务日期。普通任务直接删除；重复任务只跳过当天。返回处理条数。 */
+export function removeTodoOccurrences(items) {
+  const list = Array.isArray(items) ? items : [];
+  let n = 0;
+  for (const it of list) {
+    const t = state.todos.find((x) => x.id === it.id);
+    if (!t) continue;
+    if (normRepeat(t.repeat) === 'none') {
+      state.todos = state.todos.filter((x) => x.id !== t.id);
+      n += 1;
+    } else {
+      const key = isDateKey(it.date) ? it.date : todoDate(t);
+      if (!Array.isArray(t.skipDates)) t.skipDates = [];
+      if (!t.skipDates.includes(key)) { t.skipDates.push(key); n += 1; }
+    }
+  }
+  if (n) commit();
+  return n;
+}
 /* 任务中心概览：今日待办、逾期条数、未来一周待办，供首页入口显示 */
 export function todoOverview() {
   const today = dateKey(new Date());

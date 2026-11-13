@@ -30,10 +30,10 @@ check('批量条 hidden 的 CSS 修复已落地',
 check('批量条默认 hidden 且由 selectMode 控制',
   logSrc.includes('id="batch-bar" hidden') && logSrc.includes('batchBar.hidden = !selectMode'), true);
 check('版本：sw v36 / manifest 30-1.30.1 / 页脚 v1.30.1',
-  swSrc.includes("const CACHE = 'study-tracker-v40';")
-    && manifestXml.includes('android:versionCode="34"')
-    && manifestXml.includes('android:versionName="1.34"')
-    && meSrc.includes('学习记录 v1.34'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v41';")
+    && manifestXml.includes('android:versionCode="35"')
+    && manifestXml.includes('android:versionName="1.35"')
+    && meSrc.includes('学习记录 v1.35'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

@@ -3,9 +3,10 @@ import {
   taskOccurrences, nextTodoOccurrences, overdueTodos, rescheduleTodo, toggleTodo, setTodoDone, removeTodo, removeTodoSeries,
   addTodo, setTodoMinutes, getSubject, activeSubjects, normRepeat, repeatLabel, todoOverview, dateKey, addDays, parseKey,
   getTodo, updateTodo, rescheduleTodoOccurrence,
+  completeTodoOccurrences, rescheduleTodoOccurrences, removeTodoOccurrences,
 } from '../store.js';
 import {
-  esc, fmtMinShort, weekdayCN, monthDayCN, toast, haptic, openSheet, closeSheet,
+  esc, fmtMinShort, weekdayCN, monthDayCN, toast, haptic, openSheet, closeSheet, confirmSheet,
 } from '../util.js';
 import { openAddTask, openRepeatDeleteSheet } from './plan.js';
 import { openRecordSheet } from '../sheets.js';
@@ -16,6 +17,7 @@ const FILTERS = [
   { id: 'all', label: '全部' },
 ];
 const DAY_MS = 86400000;
+function occKey(t) { return t.id + '|' + t.occurrence; }
 function dayDiff(from, to) {
   const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
   const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
@@ -212,6 +214,10 @@ export function renderTodos(ctx) {
   let subjectId = '';
   let bodyEl = null;
   let countEl = null;
+  let selectMode = false;
+  const selected = new Set();
+  let batchBar = null;
+  let batchBtn = null;
 
   const overview = todoOverview();
   const subjects = activeSubjects();
@@ -236,8 +242,118 @@ export function renderTodos(ctx) {
     + '</div>'
     + subjectChips
     + '<div class="todo-toolbar fade-in"><p class="hint" id="todo-count" aria-live="polite"></p>'
-    + '<button class="btn primary todo-add" type="button" data-act="add">+ 添加任务</button></div>'
-    + '<div id="todos-body"></div>';
+    + '<div class="todo-tools">'
+    + (overview.overdue ? '<button class="chip todo-snooze-all" type="button" data-act="snooze-all">顺延全部逾期</button>' : '')
+    + '<button class="chip todo-batch-btn" type="button" id="todo-batch" aria-pressed="false">批量</button>'
+    + '<button class="btn primary todo-add" type="button" data-act="add">+ 添加任务</button>'
+    + '</div></div>'
+    + '<div id="todos-body"></div>'
+    + '<div class="batch-bar todo-batch-bar" id="todo-batch-bar" hidden role="toolbar" aria-label="任务批量操作">'
+    + '<button class="chip todo-batch-chip" type="button" id="todo-batch-all">全选</button>'
+    + '<span class="batch-count" id="todo-batch-count" aria-live="polite">已选 0 项</span>'
+    + '<button class="chip todo-batch-chip" type="button" id="todo-batch-complete" disabled>标完成</button>'
+    + '<button class="chip todo-batch-chip" type="button" id="todo-batch-snooze" disabled>顺延</button>'
+    + '<button class="chip todo-batch-chip batch-danger" type="button" id="todo-batch-del" disabled>删除</button>'
+    + '<button class="chip todo-batch-chip" type="button" id="todo-batch-exit">退出</button>'
+    + '</div>';
+
+  function currentItems() {
+    return collect(filter, q, subjectId);
+  }
+
+  function selectedItems() {
+    const map = new Map(currentItems().map((t) => [occKey(t), t]));
+    return Array.from(selected).map((k) => map.get(k)).filter(Boolean);
+  }
+
+  function syncBatchBar() {
+    const count = document.getElementById('todo-batch-count');
+    if (count) count.textContent = '已选 ' + selected.size + ' 项';
+    ['todo-batch-complete', 'todo-batch-snooze', 'todo-batch-del'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = !selected.size;
+    });
+  }
+
+  function decorateSelect() {
+    if (!bodyEl || !batchBar) return;
+    bodyEl.classList.toggle('selecting', selectMode);
+    batchBar.hidden = !selectMode;
+    bodyEl.querySelectorAll('.todo-task').forEach((el) => {
+      let pick = el.querySelector('.todo-pick');
+      if (selectMode && !pick) {
+        pick = document.createElement('span');
+        pick.className = 'todo-pick';
+        pick.setAttribute('aria-hidden', 'true');
+        el.prepend(pick);
+      }
+      if (!selectMode && pick) pick.remove();
+      el.classList.toggle('picked', selectMode && selected.has(el.dataset.id + '|' + el.dataset.occ));
+    });
+    syncBatchBar();
+  }
+
+  function enterSelect() {
+    selectMode = true;
+    selected.clear();
+    if (batchBtn) batchBtn.setAttribute('aria-pressed', 'true');
+    haptic();
+    decorateSelect();
+  }
+
+  function exitSelect() {
+    selectMode = false;
+    selected.clear();
+    if (batchBtn) batchBtn.setAttribute('aria-pressed', 'false');
+    decorateSelect();
+  }
+
+  function batchComplete() {
+    const items = selectedItems().filter((t) => !t.done);
+    if (!items.length) { toast('选中的任务都已完成'); return; }
+    const n = completeTodoOccurrences(items.map((t) => ({ id: t.id, date: t.occurrence })));
+    exitSelect();
+    paint();
+    toast('已标记完成 ' + n + ' 项');
+  }
+
+  function batchSnooze() {
+    const items = selectedItems().filter((t) => !t.done && t.occurrence <= todayKey);
+    if (!items.length) { toast('选中任务里没有需要顺延的逾期任务'); return; }
+    const n = rescheduleTodoOccurrences(items.map((t) => ({ id: t.id, date: t.occurrence })), todayKey);
+    exitSelect();
+    paint();
+    toast('已顺延 ' + n + ' 项到今天');
+  }
+
+  async function batchDelete() {
+    const items = selectedItems();
+    if (!items.length) return;
+    const ok = await confirmSheet({
+      title: '删除这 ' + items.length + ' 项任务？',
+      desc: '重复任务只跳过选中的那一天，不会删除整个系列。',
+      okText: '删除', danger: true,
+    });
+    if (!ok) return;
+    const n = removeTodoOccurrences(items.map((t) => ({ id: t.id, date: t.occurrence })));
+    exitSelect();
+    paint();
+    toast('已删除 ' + n + ' 项任务');
+  }
+
+  async function snoozeAllOverdue() {
+    const items = overdueTodos(180).filter((t) => !t.done);
+    if (!items.length) { toast('没有逾期任务'); return; }
+    const ok = await confirmSheet({
+      title: '顺延全部逾期任务？',
+      desc: '把 ' + items.length + ' 项逾期任务移到今天；重复任务只调整逾期的那一天。',
+      okText: '顺延',
+    });
+    if (!ok) return;
+    const n = rescheduleTodoOccurrences(items.map((t) => ({ id: t.id, date: t.occurrence })), todayKey);
+    paint();
+    toast('已顺延 ' + n + ' 项任务到今天');
+  }
 
   function paint() {
     const list = collect(filter, q, subjectId);
@@ -245,13 +361,19 @@ export function renderTodos(ctx) {
     countEl.textContent = filter === 'done'
       ? '共 ' + list.length + ' 项已完成'
       : filter === 'all' ? '共 ' + list.length + ' 项任务' : '共 ' + list.length + ' 项待办';
+    decorateSelect();
   }
 
   function mount(root) {
     bodyEl = root.querySelector('#todos-body');
     countEl = root.querySelector('#todo-count');
+    batchBar = root.querySelector('#todo-batch-bar');
+    batchBtn = root.querySelector('#todo-batch');
+    const leaveSelect = () => { if (selectMode) exitSelect(); };
+
     root.querySelectorAll('[data-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        leaveSelect();
         filter = btn.dataset.filter;
         root.querySelectorAll('[data-filter]').forEach((b) => {
           const on = b === btn;
@@ -263,6 +385,7 @@ export function renderTodos(ctx) {
     });
     root.querySelectorAll('[data-subject]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        leaveSelect();
         subjectId = btn.dataset.subject || '';
         root.querySelectorAll('[data-subject]').forEach((b) => {
           const on = b === btn;
@@ -275,11 +398,13 @@ export function renderTodos(ctx) {
     const input = root.querySelector('#todo-q');
     const clr = root.querySelector('#todo-clr');
     input.addEventListener('input', () => {
+      leaveSelect();
       q = input.value;
       clr.hidden = !q;
       paint();
     });
     clr.addEventListener('click', () => {
+      leaveSelect();
       input.value = '';
       q = '';
       clr.hidden = true;
@@ -293,11 +418,35 @@ export function renderTodos(ctx) {
       if (created && result.minutes) setTodoMinutes(created.id, result.minutes);
       toast(result.repeat === 'none' ? '任务已添加' : '任务已添加 · ' + repeatLabel(result.repeat) + '重复');
     });
+
+    root.querySelector('#todo-batch').addEventListener('click', () => {
+      if (selectMode) exitSelect(); else enterSelect();
+    });
+    root.querySelector('#todo-batch-all').addEventListener('click', () => {
+      currentItems().forEach((t) => selected.add(occKey(t)));
+      decorateSelect();
+      haptic();
+    });
+    root.querySelector('#todo-batch-exit').addEventListener('click', () => exitSelect());
+    root.querySelector('#todo-batch-complete').addEventListener('click', batchComplete);
+    root.querySelector('#todo-batch-snooze').addEventListener('click', batchSnooze);
+    root.querySelector('#todo-batch-del').addEventListener('click', batchDelete);
+    const snoozeAll = root.querySelector('[data-act="snooze-all"]');
+    if (snoozeAll) snoozeAll.addEventListener('click', snoozeAllOverdue);
+
     bodyEl.addEventListener('click', async (e) => {
+      const row = e.target instanceof Element ? e.target.closest('[data-occ]') : null;
+      if (!row) return;
+      if (selectMode) {
+        const k = row.dataset.id + '|' + row.dataset.occ;
+        if (selected.has(k)) selected.delete(k); else selected.add(k);
+        row.classList.toggle('picked', selected.has(k));
+        syncBatchBar();
+        haptic();
+        return;
+      }
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
-      const row = btn.closest('[data-occ]');
-      if (!row) return;
       const id = row.dataset.id;
       const key = row.dataset.occ;
       const rep = normRepeat(row.dataset.repeat);

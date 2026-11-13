@@ -50,10 +50,10 @@ check('统计页 / 我的页 / 样式清单',
     && swSrc.includes('./js/views/insights.js')
     && swSrc.includes('./css/parts/insights.css'), true);
 check('版本：sw v34 / manifest 28-1.29 / 页脚 v1.30',
-  swSrc.includes("const CACHE = 'study-tracker-v40';")
-    && manifestXml.includes('android:versionCode="34"')
-    && manifestXml.includes('android:versionName="1.34"')
-    && meSrc.includes('学习记录 v1.34'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v41';")
+    && manifestXml.includes('android:versionCode="35"')
+    && manifestXml.includes('android:versionName="1.35"')
+    && meSrc.includes('学习记录 v1.35'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });

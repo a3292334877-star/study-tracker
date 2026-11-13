@@ -36,10 +36,10 @@ check('store.js 标签函数', storeSrc.includes('export function tagStats')
 check('me.js 标签管理入口与弹层', meSrc.includes('data-act="tag-manage"')
   && meSrc.includes('function openTagSheet') && meSrc.includes('function openTagActions')
   && meSrc.includes('renameTag(tag, to)') && meSrc.includes('removeTag(tag)')
-  && meSrc.includes('学习记录 v1.34'), true);
+  && meSrc.includes('学习记录 v1.35'), true);
 check('stats.js 标签分布卡', statsSrc.includes('标签分布') && statsSrc.includes('tagRows') && statsSrc.includes('tagMax'), true);
-check('版本：sw v28 / manifest 22-1.23', swSrc.includes("const CACHE = 'study-tracker-v40';")
-  && manifestXml.includes('android:versionCode="34"') && manifestXml.includes('android:versionName="1.34"'), true);
+check('版本：sw v28 / manifest 22-1.23', swSrc.includes("const CACHE = 'study-tracker-v41';")
+  && manifestXml.includes('android:versionCode="35"') && manifestXml.includes('android:versionName="1.35"'), true);
 
 /* ---------- 2. 起服务器 + Edge ---------- */
 const dirname = path.dirname(fileURLToPath(import.meta.url));
