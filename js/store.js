@@ -1438,6 +1438,26 @@ export function removeTemplate(id) {
   state.templates = state.templates.filter((t) => t.id !== id);
   commit();
 }
+/* v1.31：模板管理页用，改科目 / 标题 / 时长 / 标签 */
+export function updateTemplate(id, { subjectId = null, title = '', minutes = 0, tags = [] } = {}) {
+  const t = state.templates.find((x) => x.id === id);
+  if (!t) return null;
+  const nextTitle = String(title || '').trim().slice(0, 40);
+  if (!nextTitle) return null;
+  t.subjectId = subjectId || null;
+  t.title = nextTitle;
+  t.minutes = Math.max(0, Math.round(Number(minutes) || 0));
+  t.tags = normTags(tags);
+  commit();
+  return t;
+}
+/* v1.31：清空全部模板，返回清掉的条数 */
+export function clearTemplates() {
+  const n = state.templates.length;
+  state.templates = [];
+  if (n) commit();
+  return n;
+}
 
 /* ---------- 今日任务 / 学习计划（v1.17） / 重复任务（v1.18） ---------- */
 const REPEAT_TYPES = ['none', 'daily', 'weekdays', 'weekly'];

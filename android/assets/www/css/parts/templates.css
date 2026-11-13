@@ -1,0 +1,35 @@
+/* 常用模板管理（v1.31） */
+.tpl-hero .hero-value b{font-size:34px}
+.tpl-list{display:flex;flex-direction:column;gap:10px}
+.tpl-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:14px 14px 12px;box-shadow:var(--shadow-1);
+}
+.tpl-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tpl-subject{
+  display:inline-flex;align-items:center;gap:6px;min-width:0;
+  font-size:12.5px;font-weight:600;color:var(--text-2);
+}
+.tpl-dot{flex:none;width:8px;height:8px;border-radius:50%}
+.tpl-when{flex:none;font-size:11.5px;color:var(--text-3)}
+.tpl-title{font-size:15.5px;line-height:1.45;margin-top:7px;word-break:break-word}
+.tpl-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.tpl-tag{
+  display:inline-block;padding:2px 8px;border-radius:99px;
+  background:var(--primary-soft);color:var(--primary);font-size:11.5px;font-weight:600;
+}
+.tpl-actions{display:flex;gap:7px;margin-top:12px}
+.tpl-actions .btn{height:34px;padding:0 11px;border-radius:11px;font-size:12.5px}
+.tpl-actions .tpl-use{flex:1;min-width:0}
+.tpl-clear{
+  display:block;margin:18px auto 4px;padding:7px 14px;
+  color:var(--danger);font-size:12.5px;font-weight:600;border-radius:10px;
+}
+.tpl-clear:active{background:color-mix(in srgb,var(--danger) 10%,transparent)}
+.tpl-empty .empty .em{font-size:34px}
+.sheetx-tpl-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sheetx-tpl-manage{
+  height:36px;padding:0 14px;margin-top:11px;border-radius:12px;
+  font-size:13px;background:var(--primary-soft);color:var(--primary);font-weight:600;
+}
+.sheetx-tpl-manage:active{transform:scale(.97)}

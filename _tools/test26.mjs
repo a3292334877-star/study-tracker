@@ -49,9 +49,9 @@ check('目标日历样式',
     && calendarCss.includes('.cal-view-toggle')
     && calendarCss.includes('.cal-goal-stat'), true);
 check('版本：sw v30 / manifest 24-1.25 / 页脚 v1.25',
-  swSrc.includes("const CACHE = 'study-tracker-v36';")
-    && manifestXml.includes('android:versionCode="30"') && manifestXml.includes('android:versionName="1.30.1"')
-    && meSrc.includes('学习记录 v1.30'), true);
+  swSrc.includes("const CACHE = 'study-tracker-v37';")
+    && manifestXml.includes('android:versionCode="31"') && manifestXml.includes('android:versionName="1.31"')
+    && meSrc.includes('学习记录 v1.31'), true);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const server = spawn(process.execPath, [path.join(dirname, 'server.mjs'), ROOT, String(PORT)], { stdio: 'ignore' });
@@ -134,7 +134,7 @@ check('从目标页进入目标日历', viaGoals && viaGoals.route.indexOf('#/ca
 
 await evaluate('location.hash = "#/me"; "ok"');
 await sleep(900);
-const me = await evaluate("(() => ({ footer: document.body.innerText.indexOf('学习记录 v1.30') >= 0 }))()");
+const me = await evaluate("(() => ({ footer: document.body.innerText.indexOf('学习记录 v1.31') >= 0 }))()");
 check('我的页 v1.25 页脚', me && me.footer, me);
 
 check('无未捕获异常', logs.length === 0, logs.slice(0, 5));

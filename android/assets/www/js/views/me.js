@@ -6,7 +6,7 @@ import {
   clearDemo, hasDemoData, listCorrupt, clearCorrupt, estimateStorageBytes,
   tagStats, renameTag, removeTag, importSessions,
   auditData, dedupeSessions, reassignOrphanSessions, fixAbnormalMinutes,
-  achievementStats, planWeek, goalOverview,
+  achievementStats, planWeek, goalOverview, getTemplates,
 } from '../store.js';
 import {
   applyTheme, openSheet, closeSheet, toast, fmtMinShort, dateKey,
@@ -32,6 +32,7 @@ export function renderMe(ctx) {
   const achieve = achievementStats();
   const weekPlan = planWeek(dateKey(new Date()));
   const goals = goalOverview();
+  const tplCount = getTemplates().length;
 
   const html = `
     <section class="card fade-in" style="display:flex;align-items:center;gap:14px">
@@ -134,6 +135,11 @@ export function renderMe(ctx) {
         <div class="row-main"><div class="row-title">标签管理</div><div class="row-sub">${tagStats().length} 个标签 · 重命名 / 合并 / 删除</div></div>
         <div class="row-chev">›</div>
       </button>
+      <button class="row" type="button" data-act="template-manage">
+        <div class="row-ic">⚡</div>
+        <div class="row-main"><div class="row-title">常用模板</div><div class="row-sub">${tplCount} 条模板 · 查看 / 编辑 / 一键使用</div></div>
+        <div class="row-chev">›</div>
+      </button>
       <button class="row" type="button" data-act="memory">
         <div class="row-ic">🔁</div>
         <div class="row-main"><div class="row-title">笔记回顾</div><div class="row-sub">按间隔重温写过心得的记录</div></div>
@@ -230,7 +236,7 @@ export function renderMe(ctx) {
 
     <p class="hint center" style="margin-top:22px;line-height:1.9">
       数据仅保存在本机${window.AndroidApp ? ' App' : '浏览器'}<br/>
-      学习记录 v1.30.1 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
+      学习记录 v1.31 · ${window.AndroidApp ? 'Android 应用' : '可以添加到主屏幕使用'}
     </p>
   `;
 
@@ -245,6 +251,8 @@ export function renderMe(ctx) {
     if (drRow) drRow.addEventListener('click', () => openDailyReminderSheet(ctx));
     root.querySelector('[data-act="subjects"]').addEventListener('click', () => ctx.go('#/subjects'));
     root.querySelector('[data-act="timer"]').addEventListener('click', () => ctx.go('#/timer'));
+    const tplRow = root.querySelector('[data-act="template-manage"]');
+    if (tplRow) tplRow.addEventListener('click', () => ctx.go('#/templates'));
     root.querySelector('[data-act="memory"]').addEventListener('click', () => ctx.go('#/memory'));
     const goalsRow = root.querySelector('[data-act="goals"]');
     if (goalsRow) goalsRow.addEventListener('click', () => ctx.go('#/goals'));

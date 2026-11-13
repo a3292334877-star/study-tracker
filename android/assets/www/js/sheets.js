@@ -180,7 +180,10 @@ export function openRecordSheet({ id = null, endTs, onChange, onSaved, initial, 
     <div class="field">
       <label>常用模板</label>
       <div class="chips sheetx-tpls" id="r-tpls">${tplHTML()}</div>
-      <button class="btn sheetx-save-tpl" type="button" data-act="tpl-save">＋ 存为模板</button>
+      <div class="sheetx-tpl-actions">
+        <button class="btn sheetx-save-tpl" type="button" data-act="tpl-save">＋ 存为模板</button>
+        <button class="btn sheetx-tpl-manage" type="button" data-act="tpl-manage">管理模板 ›</button>
+      </div>
     </div>
 
     <div class="sheet-actions">
@@ -322,6 +325,15 @@ export function openRecordSheet({ id = null, endTs, onChange, onSaved, initial, 
       haptic();
       toast('已存为模板');
     });
+
+    /* 管理模板：关掉表单，进入模板管理页 */
+    const tplManage = sheet.querySelector('[data-act="tpl-manage"]');
+    if (tplManage) {
+      tplManage.addEventListener('click', () => {
+        closeSheet();
+        location.hash = '#/templates';
+      });
+    }
 
     /* 模板 chips：一键填入科目 / 内容 / 时长 / 标签 */
     tplBox.addEventListener('click', (e) => {
